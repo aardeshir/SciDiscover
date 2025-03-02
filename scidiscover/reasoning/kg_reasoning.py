@@ -1,170 +1,240 @@
-"""Knowledge Graph Reasoning Agent"""
+"""
+Knowledge Graph Reasoning Agent
+Implements scientific discovery through graph-based concept exploration
+Enhanced for Claude-3 capabilities with extended context and reasoning
+"""
 from typing import Dict, List, Optional
 from ..knowledge.kg_coi import KGCOIManager
 from .llm_manager import LLMManager
 import json
 
 class KGReasoningAgent:
+    """
+    Graph-based scientific reasoning agent
+    Based on SciAgents and KG-COI methodologies
+    """
     def __init__(self, llm_manager: LLMManager):
         self.kg_manager = KGCOIManager()
         self.llm_manager = llm_manager
 
     def analyze_mechanism_path(self, query: str, concepts: List[str], 
-                             novelty_score: float = 0.5, 
-                             include_established: bool = True,
-                             enable_thinking: bool = True) -> Dict:
-        """Analyze molecular mechanisms using graph path exploration"""
+                            novelty_score: float = 0.5, 
+                            include_established: bool = True) -> Dict:
+        """
+        Analyze molecular mechanisms using graph path exploration
+        """
         try:
-            # Input validation
-            if not query or not concepts:
-                return self._create_error_response("Please provide a query and concepts for analysis")
+            # First validate and process concepts
+            if not concepts:
+                raise ValueError("No concepts provided for analysis")
 
-            # Craft a detailed prompt for scientific analysis
-            analysis_prompt = f"""Analyze the following molecular mechanisms query in depth:
+            print(f"Starting analysis with concepts: {concepts}")
 
-QUERY: {query}
+            # Generate initial analysis with Claude-3's extended capabilities
+            analysis_prompt = f"""
+            Analyze this scientific query using Claude-3's 200K context window and 64K token output:
+            Query: {query}
+            Concepts: {', '.join(concepts)}
+            Novelty Level: {novelty_score} (0: Well-established, 1: Novel/Recent)
+            Include Established Mechanisms: {include_established}
 
-KEY CONCEPTS: {', '.join(concepts)}
+            Provide a comprehensive scientific analysis including:
+            1. Key molecular pathways and mechanisms
+            2. Gene interactions and regulatory networks
+            3. Temporal dynamics and progression
+            4. Clinical relevance and therapeutic potential
+            5. Supporting experimental evidence
+            6. Future research directions
 
-ANALYSIS PARAMETERS:
-- Novelty Level: {novelty_score} (0-1 scale where higher values indicate more recent/novel discoveries)
-- Include Established Mechanisms: {include_established}
-
-INSTRUCTIONS:
-Provide a comprehensive scientific analysis that covers:
-1. Key molecular pathways involved in the mechanism, with clear descriptions
-2. Relevant genes and their roles in these pathways
-3. Detailed description of the molecular mechanisms
-4. Temporal sequence of events in the process
-5. Supporting experimental evidence from literature
-6. Clinical and therapeutic implications
-
-FORMAT YOUR RESPONSE AS A VALID JSON OBJECT with the following structure:
-{{
-    "primary_analysis": {{
-        "pathways": [
-            "Description of pathway 1",
-            "Description of pathway 2"
-        ],
-        "genes": [
+            Format your response as a JSON object with this structure:
             {{
-                "name": "GENE1",
-                "role": "Detailed description of this gene's role"
-            }},
-            {{
-                "name": "GENE2",
-                "role": "Detailed description of this gene's role"
+                "primary_analysis": {{
+                    "pathways": ["list of key molecular pathways"],
+                    "genes": [
+                        {{
+                            "name": "gene name",
+                            "role": "detailed role description"
+                        }}
+                    ],
+                    "mechanisms": "detailed mechanism description",
+                    "timeline": ["temporal sequence events"],
+                    "evidence": ["experimental evidence"],
+                    "implications": ["clinical implications"]
+                }},
+                "validation": "validation analysis",
+                "confidence_score": float  # 0-1 score
             }}
-        ],
-        "mechanisms": "Comprehensive description of the molecular mechanisms",
-        "timeline": [
-            "First temporal event",
-            "Second temporal event"
-        ],
-        "evidence": [
-            "First piece of supporting evidence",
-            "Second piece of supporting evidence"
-        ],
-        "implications": [
-            "First clinical or therapeutic implication",
-            "Second clinical or therapeutic implication"
-        ]
-    }},
-    "validation": "Summary of how well-established this analysis is",
-    "confidence_score": 0.85
-}}"""
+            """
 
-            # Get analysis with thinking enabled
-            print("Sending analysis request with extended thinking...")
+            print("Generating response with anthropic...")
             analysis = self.llm_manager.generate_response(
                 analysis_prompt,
-                model_preference="anthropic",
-                response_format="json",
-                enable_thinking=enable_thinking
-            )
-
-            # Validate response structure
-            if not isinstance(analysis, dict):
-                print("Error: Invalid response format from LLM")
-                return self._create_error_response("Invalid analysis format received")
-
-            # Extract and validate primary analysis
-            primary = analysis.get("primary_analysis", {})
-            if not isinstance(primary, dict):
-                print("Error: Invalid primary_analysis structure")
-                return self._create_error_response("Invalid analysis structure")
-
-            # Build response with validation
-            result = {
-                "primary_analysis": {
-                    "pathways": primary.get("pathways", []),
-                    "genes": primary.get("genes", []),
-                    "mechanisms": primary.get("mechanisms", "No mechanism analysis available"),
-                    "timeline": primary.get("timeline", []),
-                    "evidence": primary.get("evidence", []),
-                    "implications": primary.get("implications", [])
-                },
-                "validation": analysis.get("validation", "No validation available"),
-                "confidence_score": float(analysis.get("confidence_score", 0)),
-                "thinking_process": analysis.get("thinking_process")
-            }
-
-            # Validate content
-            if not any([
-                result["primary_analysis"]["pathways"],
-                result["primary_analysis"]["genes"],
-                result["primary_analysis"]["mechanisms"] != "No mechanism analysis available"
-            ]):
-                print("Error: No valid analysis content generated")
-                return self._create_error_response("No valid analysis content generated")
-
-            return result
-
-        except Exception as e:
-            print(f"Error in analysis: {str(e)}")
-            return self._create_error_response(f"Analysis error: {str(e)}")
-
-    def _create_error_response(self, error_message: str) -> Dict:
-        """Helper to create consistent error responses"""
-        print(f"Creating error response: {error_message}")
-        return {
-            "error": error_message,
-            "primary_analysis": {
-                "pathways": [],
-                "genes": [],
-                "mechanisms": "Analysis failed",
-                "timeline": [],
-                "evidence": [],
-                "implications": []
-            },
-            "validation": "Analysis failed",
-            "confidence_score": 0
-        }
-
-    def validate_hypothesis(self, hypothesis: Dict) -> Dict:
-        """Validate hypothesis using knowledge graph"""
-        try:
-            if not isinstance(hypothesis, dict):
-                return self._create_error_response("Invalid hypothesis format")
-
-            # Simple validation prompt
-            prompt = f"""Validate this scientific hypothesis:
-{json.dumps(hypothesis, indent=2)}
-
-Provide a comprehensive validation including:
-1. Assessment of evidence supporting the hypothesis
-2. Identification of gaps in current evidence
-3. Discussion of alternative mechanisms
-4. Overall confidence assessment
-5. Suggestions for experimental validation"""
-
-            validation = self.llm_manager.generate_response(
-                prompt,
                 model_preference="anthropic",
                 response_format="json"
             )
 
-            return validation if isinstance(validation, dict) else self._create_error_response("Failed to validate hypothesis")
+            print("Raw Anthropic response:", analysis)
+
+            if isinstance(analysis, str):
+                analysis = json.loads(analysis)
+                print("Parsed JSON successfully:", analysis)
+
+            # Validate and ensure required fields
+            primary_analysis = analysis.get("primary_analysis", {})
+            if not isinstance(primary_analysis, dict):
+                primary_analysis = {}
+
+            # Build knowledge graph representation
+            print("Performing graph-based analysis...")
+            graph_data = {
+                "concept_paths": [],
+                "nodes": list(self.kg_manager.graph.nodes()),
+                "edges": list(self.kg_manager.graph.edges(data=True))
+            }
+
+            result = {
+                "primary_analysis": {
+                    "pathways": primary_analysis.get("pathways", []),
+                    "genes": primary_analysis.get("genes", []),
+                    "mechanisms": primary_analysis.get("mechanisms", "No mechanism analysis available"),
+                    "timeline": primary_analysis.get("timeline", []),
+                    "evidence": primary_analysis.get("evidence", []),
+                    "implications": primary_analysis.get("implications", "No implications available")
+                },
+                "validation": analysis.get("validation", "No validation available"),
+                "confidence_score": float(analysis.get("confidence_score", 0)),
+                "graph_analysis": graph_data
+            }
+
+            print("Analysis completed successfully")
+            return result
 
         except Exception as e:
-            return self._create_error_response(f"Validation error: {str(e)}")
+            print(f"Error in mechanism analysis: {str(e)}")
+            return {
+                "error": f"Failed to analyze mechanism: {str(e)}",
+                "primary_analysis": {
+                    "pathways": [],
+                    "genes": [],
+                    "mechanisms": "Analysis failed",
+                    "timeline": [],
+                    "evidence": [],
+                    "implications": "Analysis failed"
+                },
+                "validation": "Analysis failed",
+                "confidence_score": 0,
+                "graph_analysis": {
+                    "concept_paths": [],
+                    "nodes": [],
+                    "edges": []
+                }
+            }
+
+    def validate_hypothesis(self, hypothesis: Dict) -> Dict:
+        """
+        Validate hypothesis using graph-based evidence
+        """
+        try:
+            # Get first valid path or empty list
+            seed_path = (hypothesis.get("concept_paths", []) or [{}])[0]
+
+            # Extract subgraph using seed path if available
+            relevant_subgraph = (
+                self.kg_manager.extract_subgraph(seed_path)
+                if seed_path and "nodes" in seed_path
+                else self.kg_manager.graph
+            )
+
+            validation_prompt = f"""
+            Validate this scientific hypothesis using the knowledge graph evidence:
+            Hypothesis: {hypothesis.get("hypothesis", "")}
+            Graph Evidence: {json.dumps(list(relevant_subgraph.edges(data=True)), indent=2)}
+            Novelty Score: {hypothesis.get("novelty_score", 0.5)}
+
+            Leverage Claude's comprehensive analysis capabilities to consider:
+            1. Support from graph relationships
+            2. Completeness of mechanistic explanation
+            3. Alternative paths or mechanisms
+            4. Potential gaps in evidence
+            5. Balance between novelty and established knowledge
+            6. Integration with existing literature
+            7. Technical feasibility
+            8. Clinical relevance
+            9. Therapeutic potential
+            10. Future research implications
+
+            Format your response as a JSON object with this structure:
+            {{
+                "validation": {{
+                    "supported_claims": ["list of supported claims"],
+                    "missing_evidence": ["gaps in evidence"],
+                    "alternative_mechanisms": ["other possible mechanisms"],
+                    "novelty_assessment": {{
+                        "innovative_aspects": ["novel elements identified"],
+                        "established_foundations": ["well-validated components"],
+                        "cross_disciplinary_insights": ["interdisciplinary connections"],
+                        "technical_innovations": ["methodological advances"],
+                        "score": float  # 0-1 novelty score
+                    }},
+                    "feasibility_assessment": {{
+                        "technical_requirements": ["required methods/tools"],
+                        "potential_challenges": ["anticipated difficulties"],
+                        "mitigation_strategies": ["suggested solutions"]
+                    }},
+                    "clinical_translation": {{
+                        "therapeutic_potential": ["treatment possibilities"],
+                        "biomarker_candidates": ["potential biomarkers"],
+                        "development_timeline": ["estimated development stages"]
+                    }}
+                }},
+                "confidence_score": float,  # 0-1 score
+                "impact_assessment": {{
+                    "scientific_impact": float,  # 0-1 score
+                    "clinical_impact": float,    # 0-1 score
+                    "technical_impact": float    # 0-1 score
+                }}
+            }}
+            """
+
+            validation = self.llm_manager.generate_response(
+                validation_prompt,
+                model_preference="anthropic",
+                response_format="json"
+            )
+
+            if isinstance(validation, str):
+                validation = json.loads(validation)
+
+            return validation
+        except Exception as e:
+            print(f"Error in hypothesis validation: {str(e)}")
+            return {
+                "validation": {
+                    "supported_claims": [],
+                    "missing_evidence": ["Validation failed due to technical error"],
+                    "alternative_mechanisms": [],
+                    "novelty_assessment": {
+                        "innovative_aspects": [],
+                        "established_foundations": [],
+                        "cross_disciplinary_insights": [],
+                        "technical_innovations": [],
+                        "score": 0.0
+                    },
+                    "feasibility_assessment": {
+                        "technical_requirements": [],
+                        "potential_challenges": [],
+                        "mitigation_strategies": []
+                    },
+                    "clinical_translation": {
+                        "therapeutic_potential": [],
+                        "biomarker_candidates": [],
+                        "development_timeline": []
+                    }
+                },
+                "confidence_score": 0.0,
+                "impact_assessment": {
+                    "scientific_impact": 0.0,
+                    "clinical_impact": 0.0,
+                    "technical_impact": 0.0
+                }
+            }
