@@ -1,9 +1,11 @@
 """
 Main SciAgent implementation following SciAgents architecture
+Enhanced with KG-COI graph reasoning
 """
 from typing import Dict, List, Optional
 from .llm_manager import LLMManager
 from .agents import OntologistAgent, ScientistAgent, ExpanderAgent, CriticAgent
+from .kg_reasoning import KGReasoningAgent
 import json
 
 class SciAgent:
@@ -17,6 +19,7 @@ class SciAgent:
         self.scientist = ScientistAgent(self.llm_manager)
         self.expander = ExpanderAgent(self.llm_manager)
         self.critic = CriticAgent(self.llm_manager)
+        self.kg_reasoner = KGReasoningAgent(self.llm_manager)
 
     def analyze_mechanism(self, query: str) -> Dict:
         """
@@ -30,9 +33,21 @@ class SciAgent:
             if not concepts or not isinstance(concepts, dict):
                 return {"error": "Failed to extract concepts"}
 
-            # Step 2: Initial Hypothesis Generation
+            # Step 2: Graph-based Analysis
+            print("Performing graph-based analysis...")
+            concept_list = []
+            for category in ["molecular_components", "cellular_processes", 
+                           "regulatory_mechanisms", "developmental_context"]:
+                concept_list.extend(concepts.get(category, []))
+
+            graph_analysis = self.kg_reasoner.analyze_mechanism_path(query, concept_list)
+
+            # Step 3: Initial Hypothesis Generation
             print("Generating initial hypothesis...")
-            initial_hypothesis = self.scientist.generate_hypothesis(concepts)
+            initial_hypothesis = self.scientist.generate_hypothesis({
+                **concepts,
+                "graph_evidence": graph_analysis["knowledge_graph"]
+            })
 
             if not initial_hypothesis or not isinstance(initial_hypothesis, dict):
                 return {
@@ -40,7 +55,7 @@ class SciAgent:
                     "concepts": concepts
                 }
 
-            # Step 3: Hypothesis Expansion
+            # Step 4: Hypothesis Expansion
             print("Expanding hypothesis...")
             expanded = self.expander.expand_hypothesis(initial_hypothesis)
 
@@ -50,20 +65,21 @@ class SciAgent:
                     "initial_hypothesis": initial_hypothesis
                 }
 
-            # Step 4: Critical Review
+            # Step 5: Graph-based Validation
+            print("Validating with knowledge graph...")
+            graph_validation = self.kg_reasoner.validate_hypothesis({
+                **initial_hypothesis,
+                "concept_paths": graph_analysis["concept_paths"]
+            })
+
+            # Step 6: Critical Review
             print("Performing critical review...")
-            # Combine initial and expanded hypotheses for review
             full_hypothesis = {
                 **initial_hypothesis,
-                "expanded_analysis": expanded
+                "expanded_analysis": expanded,
+                "graph_validation": graph_validation
             }
             review = self.critic.review_hypothesis(full_hypothesis)
-
-            if not review or not isinstance(review, dict):
-                return {
-                    "error": "Failed to review hypothesis",
-                    "full_hypothesis": full_hypothesis
-                }
 
             # Combine all analyses into final output
             return {
@@ -75,6 +91,11 @@ class SciAgent:
                     "timeline": initial_hypothesis["mechanisms"]["timeline"],
                     "evidence": initial_hypothesis["evidence"],
                     "implications": expanded["therapeutic_implications"]
+                },
+                "graph_analysis": {
+                    "concept_paths": graph_analysis["concept_paths"],
+                    "mechanistic_insights": graph_analysis["hypothesis"],
+                    "validation": graph_validation
                 },
                 "expanded_analysis": {
                     "pathway_interactions": expanded["expanded_mechanisms"]["pathway_interactions"],
