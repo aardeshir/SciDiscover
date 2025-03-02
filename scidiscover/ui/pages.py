@@ -30,6 +30,8 @@ def main_page():
         st.session_state.analysis_running = False
     if 'analysis_stage' not in st.session_state:
         st.session_state.analysis_stage = 0
+    if 'thinking_mode' not in st.session_state:
+        st.session_state.thinking_mode = "high"
 
     # Add controls in sidebar
     with st.sidebar:
@@ -83,26 +85,46 @@ def main_page():
         st.subheader("Extended Thinking Configuration")
         thinking_mode = st.radio(
             "Claude's Thinking Mode",
-            ["High-Demand", "Low-Demand"],
-            index=0 if st.session_state.high_demand_mode else 1,
-            help="High-Demand: Deeper analysis with 64K thinking tokens. Low-Demand: More efficient with 32K thinking tokens."
+            ["High-Demand", "Low-Demand", "None"],
+            index=0 if st.session_state.thinking_mode == "high" else (1 if st.session_state.thinking_mode == "low" else 2),
+            help="Choose the level of extended thinking capabilities"
         )
+
+        # Map the radio selection to the thinking mode
+        if thinking_mode == "High-Demand":
+            st.session_state.thinking_mode = "high"
+        elif thinking_mode == "Low-Demand":
+            st.session_state.thinking_mode = "low"
+        else:  # None
+            st.session_state.thinking_mode = "none"
+
+        # For backward compatibility
         st.session_state.high_demand_mode = (thinking_mode == "High-Demand")
 
         # Display current configuration based on selected mode
-        if st.session_state.high_demand_mode:
+        if thinking_mode == "High-Demand":
             st.info("""
             **High-Demand Mode**
             - 64K thinking tokens
             - 80K max tokens output
             - Best for complex queries
+            - Slowest processing time
             """)
-        else:
+        elif thinking_mode == "Low-Demand":
             st.info("""
             **Low-Demand Mode**
             - 32K thinking tokens
             - 64K max tokens output
-            - Faster for simpler queries
+            - Balanced for typical queries
+            - Moderate processing time
+            """)
+        else:  # None
+            st.info("""
+            **No Extended Thinking**
+            - 0 thinking tokens
+            - 32K max tokens output
+            - Suitable for simple queries
+            - Fastest processing time
             """)
 
         # Add information about extended thinking capabilities
@@ -113,16 +135,18 @@ def main_page():
 
             Analysis now powered by:
             - {output_tokens}K token output capacity
-            - {thinking_tokens}K token thinking budget
-            - Advanced multi-step reasoning
-            - Deeper scientific analysis
+            - {thinking_tokens} token thinking budget
+            - {level} scientific analysis
             """.format(
-                output_tokens="80" if st.session_state.high_demand_mode else "64",
-                thinking_tokens="64" if st.session_state.high_demand_mode else "32"
+                output_tokens="80" if thinking_mode == "High-Demand" else ("64" if thinking_mode == "Low-Demand" else "32"),
+                thinking_tokens="64K" if thinking_mode == "High-Demand" else ("32K" if thinking_mode == "Low-Demand" else "0"),
+                level="Deep multi-step" if thinking_mode != "None" else "Standard"
             ))
 
     # Initialize managers with user's thinking mode preference
     sci_agent = SciAgent(high_demand_mode=st.session_state.high_demand_mode)
+    # Update the thinking mode to match the radio selection
+    sci_agent.set_thinking_mode(st.session_state.thinking_mode)
     pubtator = PubTatorClient()
 
     # Main query input
@@ -183,11 +207,21 @@ def main_page():
             # Current stage description
             st.info(f"**Current Stage:** {stages[current_stage]}")
 
-            # Estimated time remaining
+            # Estimated time remaining based on thinking mode
             if st.session_state.use_debate:
-                total_time = "15-25 minutes" if st.session_state.high_demand_mode else "10-15 minutes"
+                if st.session_state.thinking_mode == "high":
+                    total_time = "15-25 minutes"
+                elif st.session_state.thinking_mode == "low":
+                    total_time = "10-15 minutes"
+                else:  # none
+                    total_time = "5-10 minutes"
             else:
-                total_time = "10-15 minutes" if st.session_state.high_demand_mode else "5-10 minutes"
+                if st.session_state.thinking_mode == "high":
+                    total_time = "10-15 minutes"
+                elif st.session_state.thinking_mode == "low":
+                    total_time = "5-10 minutes"
+                else:  # none
+                    total_time = "2-5 minutes"
 
             st.caption(f"Total estimated time: {total_time} (This is a complex scientific analysis involving multi-step reasoning)")
 
@@ -425,7 +459,16 @@ def main_page():
 
         # Add citation for extended thinking capabilities
         st.markdown("---")
-        st.caption("Analysis powered by Claude 3.7 Sonnet's extended thinking capabilities ({0}K output tokens, {1}K thinking tokens)".format(
-            "80" if st.session_state.high_demand_mode else "64",
-            "64" if st.session_state.high_demand_mode else "32"
-        ))
+        # Show the appropriate token information based on thinking mode
+        if st.session_state.thinking_mode == "high":
+            output_tokens = "80K"
+            thinking_tokens = "64K"
+        elif st.session_state.thinking_mode == "low":
+            output_tokens = "64K"
+            thinking_tokens = "32K"
+        else:  # none
+            output_tokens = "32K" 
+            thinking_tokens = "0"
+
+        thinking_mode_text = "extended thinking" if st.session_state.thinking_mode != "none" else "standard processing"
+        st.caption(f"Analysis powered by Claude 3.7 Sonnet's {thinking_mode_text} capabilities ({output_tokens} output tokens, {thinking_tokens} thinking tokens)")

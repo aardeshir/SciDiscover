@@ -5,8 +5,8 @@ from typing import Dict, Any, Optional, Union
 import json
 from scidiscover.config import (
     OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_MODEL, 
-    ANTHROPIC_MODEL, ANTHROPIC_MAX_TOKENS_HIGH, ANTHROPIC_MAX_TOKENS_LOW,
-    ANTHROPIC_THINKING_BUDGET_HIGH, ANTHROPIC_THINKING_BUDGET_LOW, ANTHROPIC_BETA_HEADER
+    ANTHROPIC_MODEL, ANTHROPIC_MAX_TOKENS_HIGH, ANTHROPIC_MAX_TOKENS_LOW, ANTHROPIC_MAX_TOKENS_NONE,
+    ANTHROPIC_THINKING_BUDGET_HIGH, ANTHROPIC_THINKING_BUDGET_LOW, ANTHROPIC_THINKING_BUDGET_NONE, ANTHROPIC_BETA_HEADER
 )
 
 class LLMManager:
@@ -19,21 +19,30 @@ class LLMManager:
 
         # Set token limits based on the selected mode
         self.high_demand_mode = high_demand_mode
-        self.set_thinking_mode(high_demand_mode)
+        self.thinking_mode = "high" if high_demand_mode else "low"
+        self.set_thinking_mode(self.thinking_mode)
 
         print(f"Initialized LLM manager with Anthropic model: {self.anthropic_model}")
-        print(f"Thinking mode: {'High-Demand' if high_demand_mode else 'Low-Demand'}")
+        print(f"Thinking mode: {self.thinking_mode.title()}")
         print(f"Max tokens: {self.max_tokens}, Thinking budget: {self.thinking_budget}")
 
-    def set_thinking_mode(self, high_demand=True):
-        """Set the thinking mode for extended thinking capabilities"""
-        self.high_demand_mode = high_demand
-        if high_demand:
+    def set_thinking_mode(self, mode="high"):
+        """
+        Set the thinking mode for extended thinking capabilities
+        Args:
+            mode: "high" for 64K tokens, "low" for 32K tokens, "none" for no extended thinking
+        """
+        self.thinking_mode = mode.lower()
+
+        if self.thinking_mode == "high":
             self.max_tokens = ANTHROPIC_MAX_TOKENS_HIGH
             self.thinking_budget = ANTHROPIC_THINKING_BUDGET_HIGH
-        else:
+        elif self.thinking_mode == "low":
             self.max_tokens = ANTHROPIC_MAX_TOKENS_LOW
             self.thinking_budget = ANTHROPIC_THINKING_BUDGET_LOW
+        else:  # "none"
+            self.max_tokens = ANTHROPIC_MAX_TOKENS_NONE
+            self.thinking_budget = ANTHROPIC_THINKING_BUDGET_NONE
 
     def generate_response(self, prompt: str, model_preference: str = "anthropic", response_format: str = "text") -> Union[str, Dict]:
         """Generate response using specified LLM"""
@@ -60,9 +69,9 @@ class LLMManager:
                     max_tokens=self.max_tokens,
                     messages=messages,
                     thinking={
-                        "type": "enabled",
-                        "budget_tokens": self.thinking_budget
-                    },
+                        "type": "enabled" if self.thinking_budget > 0 else "disabled",
+                        "budget_tokens": self.thinking_budget if self.thinking_budget > 0 else None
+                    } if self.thinking_budget > 0 else None,
                     betas=[ANTHROPIC_BETA_HEADER]
                 ) as stream:
                     # Initialize to store thinking process
@@ -165,7 +174,7 @@ class LLMManager:
         Scientific analysis specialized function for more reliable Claude responses
         """
         print(f"Analyzing scientific query with {len(concepts)} concepts and novelty score {novelty_score}")
-        print(f"Using thinking mode: {'High-Demand' if self.high_demand_mode else 'Low-Demand'}")
+        print(f"Using thinking mode: {self.thinking_mode.title()}")
         print(f"Max tokens: {self.max_tokens}, Thinking budget: {self.thinking_budget}")
 
         # Create a structured prompt for scientific analysis with extended thinking
@@ -176,7 +185,7 @@ class LLMManager:
         Relevant concepts: {', '.join(concepts)}
         Novelty preference: {novelty_score} (0: established knowledge, 1: cutting-edge research)
 
-        Take advantage of your extended thinking capabilities ({self.thinking_budget} tokens) to explore:
+        Take advantage of your {'' if self.thinking_budget > 0 else 'standard '}thinking capabilities {f'({self.thinking_budget} tokens)' if self.thinking_budget > 0 else ''} to explore:
         1. Complex causal chains and mechanisms
         2. Multi-level relationships between elements
         3. Contradictory evidence and scientific debates
@@ -211,7 +220,7 @@ class LLMManager:
             # Format messages for Claude API
             messages = [{"role": "user", "content": prompt}]
 
-            print(f"Sending specialized scientific analysis request to Claude with extended thinking")
+            print(f"Sending specialized scientific analysis request to Claude with {'extended' if self.thinking_budget > 0 else 'standard'} thinking")
 
             # Use streaming to handle long-running requests
             full_content = ""
@@ -222,9 +231,9 @@ class LLMManager:
                 max_tokens=self.max_tokens,
                 messages=messages,
                 thinking={
-                    "type": "enabled",
-                    "budget_tokens": self.thinking_budget
-                },
+                    "type": "enabled" if self.thinking_budget > 0 else "disabled",
+                    "budget_tokens": self.thinking_budget if self.thinking_budget > 0 else None
+                } if self.thinking_budget > 0 else None,
                 betas=[ANTHROPIC_BETA_HEADER]
             ) as stream:
                 print("Streaming scientific analysis from Claude...")
