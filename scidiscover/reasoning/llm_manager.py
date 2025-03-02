@@ -11,65 +11,75 @@ class LLMManager:
         self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
     def generate_response(self, prompt: str, model_preference: str = "openai", response_format: str = "text") -> Union[str, Dict]:
-        """
-        Generate response using specified LLM
-        """
+        """Generate response using specified LLM"""
         try:
-            if model_preference == "openai":
-                messages = [{"role": "user", "content": prompt}]
+            print(f"\nGenerating response with {model_preference}...")
+            print(f"Prompt: {prompt[:200]}...")  # Print first 200 chars of prompt
 
-                # Add JSON format instruction if needed
+            if model_preference == "anthropic":
+                messages = [
+                    {
+                        "role": "user",
+                        "content": "You are a scientific research assistant trained in molecular biology and bioinformatics. "
+                                 "Always provide responses in valid JSON format when requested."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+
+                response = self.anthropic_client.messages.create(
+                    model=ANTHROPIC_MODEL,
+                    max_tokens=4000,
+                    messages=messages
+                )
+
+                # Extract content from response
+                content = response.content[0].text if hasattr(response, 'content') else None
+                print(f"\nRaw Claude response: {content}")
+
+                if response_format == "json" and content:
+                    try:
+                        json_response = json.loads(content)
+                        print(f"Parsed JSON successfully: {json.dumps(json_response, indent=2)[:200]}...")
+                        return json_response
+                    except json.JSONDecodeError as e:
+                        print(f"JSON parsing error: {e}")
+                        print(f"Failed content: {content}")
+                        return {}
+                return content or ""
+
+            elif model_preference == "openai":
+                messages = [{"role": "user", "content": prompt}]
                 if response_format == "json":
                     messages.insert(0, {
                         "role": "system",
-                        "content": "You are a scientific analysis assistant. Always respond with valid JSON."
+                        "content": "You are a scientific analysis assistant specialized in molecular biology. "
+                                 "Always respond with valid JSON."
                     })
 
                 response = self.openai_client.chat.completions.create(
                     model=OPENAI_MODEL,
                     messages=messages,
-                    response_format={"type": "json_object"} if response_format == "json" else None
-                )
-                return response.choices[0].message.content
-
-            elif model_preference == "anthropic":
-                system_prompt = "You are a scientific analysis assistant." 
-                if response_format == "json":
-                    system_prompt += " Always respond with valid JSON."
-                    prompt += "\nFormat your response as a valid JSON object."
-
-                response = self.anthropic_client.messages.create(
-                    model=ANTHROPIC_MODEL,
-                    max_tokens=4000,
-                    messages=[
-                        {
-                            "role": "assistant",
-                            "content": system_prompt
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
+                    response_format={"type": "json_object"} if response_format == "json" else None,
+                    temperature=0.3  # Lower temperature for more precise scientific responses
                 )
 
-                # Properly access Anthropic response content
-                content = response.content[0].text if hasattr(response, 'content') else response.get('content', '')
+                content = response.choices[0].message.content
+                print(f"\nOpenAI response: {content[:200]}...")
 
-                # If JSON response is expected, attempt to parse it
                 if response_format == "json":
                     try:
                         return json.loads(content)
-                    except json.JSONDecodeError:
-                        print(f"Failed to parse JSON response: {content}")
+                    except json.JSONDecodeError as e:
+                        print(f"JSON parsing error: {e}")
                         return {}
                 return content
 
-            return "" if response_format == "text" else {}
-
         except Exception as e:
-            print(f"Error in LLM response generation: {e}")
-            return "" if response_format == "text" else {}
+            print(f"Error in LLM response generation: {str(e)}")
+            return {} if response_format == "json" else ""
 
     def analyze_scientific_text(self, text: str) -> Dict[str, Any]:
         """

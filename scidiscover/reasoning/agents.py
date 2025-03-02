@@ -7,66 +7,108 @@ from .llm_manager import LLMManager
 import json
 
 class OntologistAgent:
-    """Defines and structures scientific concepts and relationships"""
+    """Defines key concepts and relationships"""
     def __init__(self, llm_manager: LLMManager):
         self.llm_manager = llm_manager
 
     def define_concepts(self, query: str) -> Dict:
+        """Analyze query and identify key biological concepts"""
         prompt = f"""
-        Analyze this scientific query and identify key biological concepts:
+        Analyze this scientific query for key molecular and cellular concepts:
         {query}
 
-        Structure your response to include:
+        Extract and structure the key concepts into the following categories:
         1. Core molecular and cellular components
         2. Key biological processes
         3. Regulatory mechanisms
         4. Temporal and developmental contexts
 
-        Format as JSON with this structure:
+        Format your response as a JSON object with this exact structure:
         {{
-            "molecular_components": ["list of molecules, proteins, genes"],
-            "cellular_processes": ["list of biological processes"],
-            "regulatory_mechanisms": ["list of control mechanisms"],
-            "developmental_context": ["list of developmental stages or conditions"]
+            "molecular_components": [
+                "List of specific molecules, proteins, genes involved in early life antibiotic treatment and immune system development"
+            ],
+            "cellular_processes": [
+                "List of key biological processes affected by early antibiotic exposure"
+            ],
+            "regulatory_mechanisms": [
+                "List of control mechanisms and pathways involved in immune development"
+            ],
+            "developmental_context": [
+                "List of relevant developmental stages and temporal factors"
+            ]
         }}
+
+        Focus on scientific accuracy and mechanistic details.
         """
-        return self.llm_manager.generate_response(prompt, "anthropic", "json")
+
+        print("\nOntologist analyzing concepts...")
+        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
+        print(f"Ontologist response type: {type(response)}")
+        print(f"Ontologist response: {json.dumps(response, indent=2)[:200]}...")
+
+        if not isinstance(response, dict) or not response:
+            print("Error: Invalid response from Ontologist")
+            return {}
+
+        return response
 
 class ScientistAgent:
-    """Generates and validates scientific hypotheses"""
+    """Generates scientific hypotheses"""
     def __init__(self, llm_manager: LLMManager):
         self.llm_manager = llm_manager
 
     def generate_hypothesis(self, concepts: Dict) -> Dict:
+        """Generate detailed scientific hypothesis"""
         prompt = f"""
         Based on these biological concepts:
         {json.dumps(concepts, indent=2)}
 
         Generate a detailed scientific hypothesis explaining the molecular mechanisms.
+        Focus on early life antibiotic treatment's influence on immune system development.
 
-        Consider:
+        Include:
         1. Specific signaling pathways
         2. Gene regulatory networks
         3. Temporal sequences
         4. Causal relationships
-        5. Supporting evidence from literature
+        5. Supporting evidence
 
-        Format as JSON with this structure:
+        Format your response as a JSON object with this exact structure:
         {{
-            "hypothesis": "Main hypothesis statement",
+            "hypothesis": "Clear statement of the main hypothesis",
             "mechanisms": {{
-                "pathways": ["involved signaling pathways"],
-                "genes": [
-                    {{"name": "gene name", "role": "mechanistic role"}}
+                "pathways": [
+                    "List of specific signaling pathways involved"
                 ],
-                "regulation": ["regulatory mechanisms"],
-                "timeline": ["temporal sequence of events"]
+                "genes": [
+                    {{
+                        "name": "Gene name",
+                        "role": "Detailed mechanistic role"
+                    }}
+                ],
+                "regulation": [
+                    "Key regulatory mechanisms"
+                ],
+                "timeline": [
+                    "Temporal sequence of events"
+                ]
             }},
-            "predictions": ["testable predictions"],
-            "evidence": ["supporting literature evidence"]
+            "evidence": [
+                "Supporting experimental evidence"
+            ]
         }}
         """
-        return self.llm_manager.generate_response(prompt, "anthropic", "json")
+
+        print("\nScientist generating hypothesis...")
+        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
+        print(f"Scientist response: {json.dumps(response, indent=2)[:200]}...")
+
+        if not isinstance(response, dict) or not response:
+            print("Error: Invalid response from Scientist")
+            return {}
+
+        return response
 
 class ExpanderAgent:
     """Expands and refines research proposals"""
