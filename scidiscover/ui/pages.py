@@ -28,6 +28,8 @@ def main_page():
         st.session_state.live_debate_updates = []
     if 'analysis_running' not in st.session_state:
         st.session_state.analysis_running = False
+    if 'analysis_stage' not in st.session_state:
+        st.session_state.analysis_stage = 0
 
     # Add controls in sidebar
     with st.sidebar:
@@ -133,94 +135,152 @@ def main_page():
 
     analyze_clicked = st.button("Analyze", type="primary")
 
-    # Create a container for live debate updates
-    live_debate_container = st.empty()
+    # Create a container for analysis progress
+    analysis_progress_container = st.empty()
 
-    # Display live updates if analysis is running
+    # Display analysis progress if running
     if st.session_state.analysis_running:
-        with live_debate_container.container():
+        # Define the analysis stages for different analysis methods
+        if st.session_state.use_debate:
+            stages = [
+                "Initiating scientific debate orchestration...",
+                "Extracting and defining key scientific concepts...",
+                "Generating initial hypothesis by Scientist Agent...",
+                "Critical evaluation by Critic Agent (Round 1)...",
+                "Hypothesis refinement by Expander Agent (Round 1)...",
+                "Scientific rebuttal by Scientist Agent (Round 1)...",
+                "Merging hypothesis improvements (Round 1)...",
+                "Critical evaluation by Critic Agent (Round 2)...",
+                "Hypothesis refinement by Expander Agent (Round 2)...",
+                "Scientific rebuttal by Scientist Agent (Round 2)...",
+                "Merging hypothesis improvements (Round 2)...",
+                "Critical evaluation by Critic Agent (Round 3)...",
+                "Hypothesis refinement by Expander Agent (Round 3)...",
+                "Scientific rebuttal by Scientist Agent (Round 3)...",
+                "Synthesizing final analysis from debate..."
+            ]
+        else:
+            stages = [
+                "Initiating scientific analysis with extended thinking...",
+                "Extracting and defining key scientific concepts...",
+                "Performing knowledge graph reasoning...",
+                "Analyzing molecular mechanisms and pathways...",
+                "Validating findings against scientific literature...",
+                "Synthesizing comprehensive analysis...",
+                "Finalizing results with confidence scoring..."
+            ]
+
+        # Calculate progress percentage
+        current_stage = min(st.session_state.analysis_stage, len(stages) - 1)
+        progress_percent = current_stage / (len(stages) - 1)
+
+        with analysis_progress_container.container():
             st.subheader("🔄 Scientific Analysis in Progress")
-            st.info("The analysis is running. You'll see live updates from the scientific agents below.")
 
-            if st.session_state.live_debate_updates:
-                st.markdown("### Live Scientific Agent Updates")
-                for update in st.session_state.live_debate_updates:
-                    with st.expander(f"{update['agent']} - {update['action']}", expanded=True):
-                        # Format based on action type
-                        if update['action'] == 'critique' and 'evaluation' in update['content']:
-                            st.markdown("**Key Points:**")
+            # Progress bar and current stage
+            st.progress(progress_percent)
 
-                            # Display strengths
-                            if 'strengths' in update['content']['evaluation']:
-                                st.markdown("*Strengths:*")
-                                for strength in update['content']['evaluation']['strengths']:
-                                    st.markdown(f"- {strength}")
+            # Current stage description
+            st.info(f"**Current Stage:** {stages[current_stage]}")
 
-                            # Display limitations
-                            if 'limitations' in update['content']['evaluation']:
-                                st.markdown("*Limitations:*")
-                                for limitation in update['content']['evaluation']['limitations']:
-                                    st.markdown(f"- {limitation}")
+            # Estimated time remaining
+            if st.session_state.use_debate:
+                total_time = "15-25 minutes" if st.session_state.high_demand_mode else "10-15 minutes"
+            else:
+                total_time = "10-15 minutes" if st.session_state.high_demand_mode else "5-10 minutes"
 
-                        elif update['action'] == 'initial_hypothesis' or update['action'] == 'rebuttal':
-                            if 'hypothesis' in update['content']:
-                                st.markdown(f"*Main Hypothesis:* {update['content']['hypothesis']}")
+            st.caption(f"Total estimated time: {total_time} (This is a complex scientific analysis involving multi-step reasoning)")
+
+            # Display a message that explains what's happening
+            if st.session_state.use_debate:
+                st.markdown("""
+                ### Multi-Agent Scientific Debate in Progress
+
+                The system is currently running a scientific debate between multiple specialized AI agents:
+                - **Scientist Agent:** Generates core hypotheses and mechanisms
+                - **Critic Agent:** Identifies limitations and challenges assumptions
+                - **Expander Agent:** Refines and improves on initial ideas
+
+                Each agent contributes to improving the scientific analysis through multiple debate rounds.
+                This process mimics scientific discourse and improves the quality of the final analysis.
+                """)
+            else:
+                st.markdown("""
+                ### Extended Scientific Analysis in Progress
+
+                The system is currently performing a deep scientific analysis using:
+                - Knowledge graph reasoning over biomedical literature
+                - Molecular mechanism and pathway identification
+                - Confidence-weighted evidence integration
+
+                This analysis uses Claude's extended thinking capabilities to explore complex scientific relationships.
+                """)
 
     # Handle the analysis process
     if analyze_clicked and query:
         st.session_state.current_query = query
         st.session_state.analysis_running = True
-        st.session_state.live_debate_updates = []  # Reset live updates
+        st.session_state.analysis_stage = 0  # Reset progress
+        st.session_state.live_debate_updates = []  # Reset updates
 
-        # Initialize the live update container
-        with live_debate_container.container():
-            st.subheader("🔄 Scientific Analysis in Progress")
-            st.info("The analysis is running. You'll see live updates from the scientific agents below.")
-
-        # Create a progress bar and status message
-        progress_bar = st.progress(0)
-        status_message = st.empty()
-
-        # Set initial status message based on analysis method
-        if st.session_state.use_debate:
-            status_message.info("Initiating debate-driven analysis with Claude 3.7 Sonnet...")
-        else:
-            status_message.info("Initiating extended thinking analysis with Claude 3.7 Sonnet...")
-
-        progress_bar.progress(10)
+        # Initialize the progress display
+        with analysis_progress_container.container():
+            if st.session_state.use_debate:
+                st.subheader("🔄 Orchestrating multi-agent scientific debate...")
+            else:
+                st.subheader("🔄 Performing deep scientific analysis...")
+            st.info("Initializing analysis, please wait...")
+            st.progress(0)
 
         try:
-            # Update status
-            status_message.info("Extracting scientific concepts and preparing analysis...")
-            progress_bar.progress(20)
-
-            # Register the callback to update debate history in real-time
+            # Register the callback to capture debate history but not for UI updates
             def update_debate_callback(entry):
                 st.session_state.live_debate_updates.append(entry)
-                # Force a rerun to update the UI
-                # st.experimental_rerun() - removed as it doesn't work
 
-            # Pass the callback to the sci_agent
+                # Update the stage counter based on agent activities
+                if entry['action'] == 'initial_hypothesis':
+                    st.session_state.analysis_stage = 2
+                elif entry['action'] == 'critique' and len(st.session_state.live_debate_updates) <= 2:
+                    st.session_state.analysis_stage = 3
+                elif entry['action'] == 'refinement' and len(st.session_state.live_debate_updates) <= 4:
+                    st.session_state.analysis_stage = 4
+                elif entry['action'] == 'rebuttal' and len(st.session_state.live_debate_updates) <= 6:
+                    st.session_state.analysis_stage = 5
+                elif entry['action'] == 'critique' and len(st.session_state.live_debate_updates) <= 8:
+                    st.session_state.analysis_stage = 7
+                elif entry['action'] == 'refinement' and len(st.session_state.live_debate_updates) <= 10:
+                    st.session_state.analysis_stage = 8
+                elif entry['action'] == 'rebuttal' and len(st.session_state.live_debate_updates) <= 12:
+                    st.session_state.analysis_stage = 9
+                elif entry['action'] == 'critique' and len(st.session_state.live_debate_updates) <= 14:
+                    st.session_state.analysis_stage = 11
+                elif entry['action'] == 'refinement' and len(st.session_state.live_debate_updates) <= 16:
+                    st.session_state.analysis_stage = 12
+                elif entry['action'] == 'rebuttal':
+                    st.session_state.analysis_stage = 13
+
+            # Pass the callback to sci_agent
             sci_agent.set_debate_callback(update_debate_callback)
 
-            if st.session_state.use_debate:
-                # Set debate-specific status
-                status_message.info("Orchestrating multi-agent scientific debate (this may take a few minutes)...")
-                progress_bar.progress(30)
+            # Update progress to concept extraction
+            st.session_state.analysis_stage = 1
 
+            if st.session_state.use_debate:
                 # Run the debate-driven analysis
                 analysis = sci_agent.analyze_mechanism_with_debate(
                     query,
                     novelty_score=novelty_score
                 )
 
+                # Final synthesis stage
+                st.session_state.analysis_stage = 14
+
                 # Store debate history if available
                 if hasattr(sci_agent.debate_orchestrator, 'debate_history'):
                     st.session_state.debate_history = sci_agent.debate_orchestrator.debate_history
             else:
-                # Set standard analysis status
-                status_message.info("Performing deep scientific analysis with extended thinking (this may take a few minutes)...")
-                progress_bar.progress(40)
+                # Update progress for standard analysis
+                st.session_state.analysis_stage = 2
 
                 # Run the standard analysis
                 analysis = sci_agent.analyze_mechanism(
@@ -229,26 +289,25 @@ def main_page():
                     include_established=st.session_state.include_established
                 )
 
+                # Standard analysis completion
+                st.session_state.analysis_stage = 6
+
                 # Reset debate history
                 st.session_state.debate_history = None
-
-            # Final status update
-            status_message.success("Analysis complete!")
-            progress_bar.progress(100)
 
             # Store results and clear status displays
             st.session_state.analysis_results = analysis
             st.session_state.analysis_running = False
-            status_message.empty()
-            progress_bar.empty()
-            live_debate_container.empty()  # Clear the live updates container
+            st.session_state.analysis_stage = 0  # Reset progress for next time
+            analysis_progress_container.empty()
 
         except Exception as e:
             # Show error and clear progress displays
-            progress_bar.empty()
-            status_message.error(f"Error in analysis: {str(e)}")
+            analysis_progress_container.empty()
+            st.error(f"Error in analysis: {str(e)}")
             st.error("The extended thinking analysis encountered an error. Please try again with a different query or check the logs for details.")
             st.session_state.analysis_running = False
+            st.session_state.analysis_stage = 0
             return
 
     # Display results if available
