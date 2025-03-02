@@ -65,21 +65,22 @@ class LLMManager:
                 # Use streaming for long-running operations to avoid timeouts
                 full_content = ""
 
-                # Configure thinking parameter correctly based on mode
-                thinking_param = None
+                # Prepare API parameters
+                api_params = {
+                    "model": self.anthropic_model,
+                    "max_tokens": self.max_tokens,
+                    "messages": messages,
+                    "betas": [ANTHROPIC_BETA_HEADER]
+                }
+
+                # Only add thinking parameter if thinking is enabled
                 if self.thinking_budget > 0:
-                    thinking_param = {
+                    api_params["thinking"] = {
                         "type": "enabled",
                         "budget_tokens": self.thinking_budget
                     }
 
-                with self.anthropic_client.beta.messages.stream(
-                    model=self.anthropic_model,
-                    max_tokens=self.max_tokens,
-                    messages=messages,
-                    thinking=thinking_param,
-                    betas=[ANTHROPIC_BETA_HEADER]
-                ) as stream:
+                with self.anthropic_client.beta.messages.stream(**api_params) as stream:
                     # Initialize to store thinking process
                     thinking_text = ""
 
@@ -232,21 +233,22 @@ class LLMManager:
             full_content = ""
             thinking_text = ""
 
-            # Configure thinking parameter correctly based on mode
-            thinking_param = None
+            # Prepare API parameters
+            api_params = {
+                "model": self.anthropic_model,
+                "max_tokens": self.max_tokens,
+                "messages": messages,
+                "betas": [ANTHROPIC_BETA_HEADER]
+            }
+
+            # Only add thinking parameter if thinking is enabled
             if self.thinking_budget > 0:
-                thinking_param = {
+                api_params["thinking"] = {
                     "type": "enabled",
                     "budget_tokens": self.thinking_budget
                 }
 
-            with self.anthropic_client.beta.messages.stream(
-                model=self.anthropic_model,
-                max_tokens=self.max_tokens,
-                messages=messages,
-                thinking=thinking_param,
-                betas=[ANTHROPIC_BETA_HEADER]
-            ) as stream:
+            with self.anthropic_client.beta.messages.stream(**api_params) as stream:
                 print("Streaming scientific analysis from Claude...")
                 for chunk in stream:
                     # Handle content chunks
