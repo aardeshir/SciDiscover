@@ -20,6 +20,8 @@ def main_page():
         st.session_state.include_established = True
     if 'show_thinking' not in st.session_state:
         st.session_state.show_thinking = True
+    if 'analysis_error' not in st.session_state:
+        st.session_state.analysis_error = None
 
     # Initialize managers
     sci_agent = SciAgent()
@@ -55,6 +57,12 @@ def main_page():
         )
         st.session_state.include_established = include_established
 
+        # Model information
+        st.markdown("---")
+        st.markdown("### Model Information")
+        st.markdown("Using Claude 3.7 Sonnet with extended thinking capability")
+        st.markdown("Extended thinking allows Claude to show its reasoning process during complex analysis tasks.")
+
     # Main query input
     query = st.text_area(
         "Enter your scientific query:",
@@ -65,9 +73,13 @@ def main_page():
 
     analyze_clicked = st.button("Analyze", type="primary")
 
+    # Clear previous errors
+    if analyze_clicked:
+        st.session_state.analysis_error = None
+
     if analyze_clicked and query:
         st.session_state.current_query = query
-        with st.spinner("Performing deep scientific analysis..."):
+        with st.spinner("Performing deep scientific analysis with extended thinking..."):
             try:
                 analysis = sci_agent.analyze_mechanism(
                     query,
@@ -75,21 +87,28 @@ def main_page():
                     include_established=include_established,
                     enable_thinking=show_thinking
                 )
-                st.session_state.analysis_results = analysis
+
+                # Check for errors
+                if "error" in analysis:
+                    st.session_state.analysis_error = analysis["error"]
+                    st.session_state.analysis_results = None
+                else:
+                    st.session_state.analysis_results = analysis
+                    st.session_state.analysis_error = None
             except Exception as e:
-                st.error(f"Error in analysis: {str(e)}")
-                return
+                st.session_state.analysis_error = f"Error in analysis: {str(e)}"
+                st.session_state.analysis_results = None
+
+    # Display any errors that occurred
+    if st.session_state.analysis_error:
+        st.error(st.session_state.analysis_error)
 
     # Display results if available
     if st.session_state.analysis_results:
         analysis = st.session_state.analysis_results
 
-        if "error" in analysis:
-            st.error("Error in analysis. Please try again.")
-            return
-
-        # Show thinking process if enabled
-        if show_thinking and "thinking_process" in analysis:
+        # Show thinking process if enabled and available
+        if show_thinking and "thinking_process" in analysis and analysis["thinking_process"]:
             with st.expander("View Analysis Thinking Process", expanded=True):
                 st.markdown("### Claude's Reasoning Process")
                 st.markdown(analysis["thinking_process"])
@@ -107,13 +126,19 @@ def main_page():
 
         # Display pathways
         st.subheader("Key Molecular Pathways")
-        for pathway in analysis["primary_analysis"]["pathways"]:
-            st.markdown(f"- {pathway}")
+        if analysis["primary_analysis"]["pathways"]:
+            for pathway in analysis["primary_analysis"]["pathways"]:
+                st.markdown(f"- {pathway}")
+        else:
+            st.info("No specific pathways identified in this analysis.")
 
         # Display genes and their roles
         st.subheader("Relevant Genes and Their Roles")
-        for gene in analysis["primary_analysis"]["genes"]:
-            st.markdown(f"- **{gene['name']}**: {gene['role']}")
+        if analysis["primary_analysis"]["genes"]:
+            for gene in analysis["primary_analysis"]["genes"]:
+                st.markdown(f"- **{gene['name']}**: {gene['role']}")
+        else:
+            st.info("No specific genes identified in this analysis.")
 
         # Display detailed mechanisms
         st.subheader("Detailed Molecular Mechanisms")
@@ -121,17 +146,27 @@ def main_page():
 
         # Display temporal sequence
         st.subheader("Temporal Sequence of Events")
-        for idx, event in enumerate(analysis["primary_analysis"]["timeline"], 1):
-            st.markdown(f"{idx}. {event}")
+        if analysis["primary_analysis"]["timeline"]:
+            for idx, event in enumerate(analysis["primary_analysis"]["timeline"], 1):
+                st.markdown(f"{idx}. {event}")
+        else:
+            st.info("No specific temporal sequence identified in this analysis.")
 
         # Display experimental evidence
         st.subheader("Supporting Experimental Evidence")
-        for evidence in analysis["primary_analysis"]["evidence"]:
-            st.markdown(f"- {evidence}")
+        if analysis["primary_analysis"]["evidence"]:
+            for evidence in analysis["primary_analysis"]["evidence"]:
+                st.markdown(f"- {evidence}")
+        else:
+            st.info("No specific experimental evidence identified in this analysis.")
 
         # Display implications
         st.subheader("Clinical and Therapeutic Implications")
-        st.markdown(analysis["primary_analysis"]["implications"])
+        if analysis["primary_analysis"]["implications"]:
+            for implication in analysis["primary_analysis"]["implications"]:
+                st.markdown(f"- {implication}")
+        else:
+            st.info("No specific clinical implications identified in this analysis.")
 
         # Show validation insights
         with st.expander("View Validation Analysis"):

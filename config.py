@@ -13,8 +13,9 @@ DB_PATH = "scidiscover.db"
 # LLM Configuration
 # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
 OPENAI_MODEL = "gpt-4o"
-# the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
-ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
+# the newest Anthropic model is "claude-3-7-sonnet-20241022" which was released October 22, 2024
+# This model supports extended thinking capabilities
+ANTHROPIC_MODEL = "claude-3-7-sonnet-20241022"
 
 # Knowledge Graph Configuration
 GRAPH_CACHE_DIR = ".graph_cache"

@@ -16,97 +16,98 @@ class LLMManager:
         """Generate response using specified LLM"""
         try:
             if model_preference == "anthropic":
-                # Structured system prompt
-                system_prompt = """You are a molecular biology expert. Your task is to analyze scientific queries and provide detailed insights.
-When responding:
-1. Keep your response focused and well-structured
-2. Ensure all JSON fields are properly formatted
-3. Provide comprehensive scientific details
-"""
-                # Build message with clear JSON structure
-                message_content = f"""{system_prompt}
+                # Set up system message
+                system_message = {
+                    "role": "system",
+                    "content": "You are a scientific analysis expert specializing in molecular biology and biochemistry. Provide detailed, accurate analysis of scientific queries."
+                }
 
-Analyze this query and provide insights:
-{prompt}
+                user_message = {
+                    "role": "user",
+                    "content": prompt
+                }
 
-Return your analysis as a valid JSON object with this exact structure:
-{{
-    "primary_analysis": {{
-        "pathways": [
-            "Clear description of each molecular pathway"
-        ],
-        "genes": [
-            {{
-                "name": "GENE_SYMBOL",
-                "role": "Detailed description of gene's role"
-            }}
-        ],
-        "mechanisms": "Comprehensive mechanism description",
-        "timeline": [
-            "Key temporal events"
-        ],
-        "evidence": [
-            "Supporting experimental evidence"
-        ],
-        "implications": [
-            "Clinical implications"
-        ]
-    }},
-    "validation": "Analysis validation summary",
-    "confidence_score": 0.85
-}}"""
+                # Configure thinking parameters
+                thinking_config = None
+                if enable_thinking:
+                    thinking_config = {
+                        "type": "enabled",
+                        "budget_tokens": 6000  # Allocate tokens for extended thinking
+                    }
 
+                # Make API request with extended thinking
                 try:
-                    # Make API request
+                    print(f"Using Claude model: {ANTHROPIC_MODEL} with extended thinking: {enable_thinking}")
                     response = self.anthropic_client.messages.create(
                         model=ANTHROPIC_MODEL,
-                        max_tokens=4000,
-                        messages=[{"role": "user", "content": message_content}],
-                        temperature=0.1
+                        max_tokens=8000,
+                        messages=[system_message, user_message],
+                        temperature=0.1,
+                        thinking=thinking_config
                     )
 
-                    # Extract content
+                    # Extract main content
                     content = response.content[0].text if hasattr(response, 'content') and response.content else ""
+
+                    # Get thinking process if available
+                    thinking_content = response.thinking if hasattr(response, 'thinking') else None
+                    print(f"Thinking content available: {thinking_content is not None}")
+
                     if not content:
+                        print("Error: Empty response from Claude")
                         return {} if response_format == "json" else ""
 
                     # Handle JSON format
                     if response_format == "json":
                         try:
-                            # Clean up response
-                            content = content.strip()
-                            if content.startswith("```json"):
-                                content = content.split("```json")[1]
-                            if content.startswith("```"):
-                                content = content.split("```")[1]
-                            if content.endswith("```"):
-                                content = content.rsplit("```", 1)[0]
+                            # Clean up response for JSON parsing
+                            json_content = content.strip()
+                            if "```json" in json_content:
+                                json_content = json_content.split("```json")[1].split("```")[0].strip()
+                            elif "```" in json_content:
+                                json_content = json_content.split("```")[1].split("```")[0].strip()
 
-                            # Parse and validate JSON
-                            result = json.loads(content.strip())
-                            if not isinstance(result, dict):
-                                return {}
+                            # Parse JSON
+                            result = json.loads(json_content)
 
-                            # Validate required structure
-                            if "primary_analysis" not in result:
-                                return {}
+                            # Add thinking process if available
+                            if enable_thinking and thinking_content:
+                                result["thinking_process"] = thinking_content
 
-                            primary = result["primary_analysis"]
-                            if not isinstance(primary, dict):
-                                return {}
-
-                            # Return valid response
                             return result
 
-                        except json.JSONDecodeError:
+                        except json.JSONDecodeError as e:
+                            print(f"JSON parsing error: {str(e)}")
+                            # If JSON parsing fails, try to be more lenient
+                            try:
+                                # Find JSON-like structure in the response
+                                if "{" in content and "}" in content:
+                                    start = content.find("{")
+                                    end = content.rfind("}") + 1
+                                    json_str = content[start:end]
+                                    result = json.loads(json_str)
+
+                                    if enable_thinking and thinking_content:
+                                        result["thinking_process"] = thinking_content
+
+                                    return result
+                            except Exception as inner_e:
+                                print(f"Failed to extract JSON: {str(inner_e)}")
+                                return {}
+
                             return {}
 
+                    # For text format, simply return content with thinking if available
+                    if enable_thinking and thinking_content:
+                        return f"Thinking process:\n{thinking_content}\n\nFinal response:\n{content}"
                     return content
 
-                except Exception:
+                except Exception as e:
+                    print(f"Claude API error: {str(e)}")
                     return {} if response_format == "json" else ""
 
             elif model_preference == "openai":
+                # OpenAI integration
                 response = self.openai_client.chat.completions.create(
                     model=OPENAI_MODEL,
                     messages=[
@@ -131,7 +132,8 @@ Return your analysis as a valid JSON object with this exact structure:
                         return {}
                 return content
 
-        except Exception:
+        except Exception as e:
+            print(f"Error in generate_response: {str(e)}")
             return {} if response_format == "json" else ""
 
     def analyze_scientific_text(self, text: str) -> Dict[str, Any]:
@@ -139,20 +141,23 @@ Return your analysis as a valid JSON object with this exact structure:
         if not text:
             return {}
 
-        prompt = f"""Analyze this scientific text and provide insights:
+        prompt = f"""Analyze this scientific text and extract key insights:
 
 Text: {text}
 
-Return your analysis as a valid JSON object with these fields:
-- concepts: List of key scientific concepts
-- relationships: List of concept relationships
-- hypotheses: List of potential hypotheses
-- implications: List of research implications"""
+Provide a comprehensive analysis that includes:
+1. Key molecular and biological concepts
+2. Relationships between identified concepts
+3. Potential scientific hypotheses
+4. Research implications and applications
+
+Your analysis should be detailed, scientifically accurate, and structured clearly."""
 
         response = self.generate_response(
             prompt,
             model_preference="anthropic",
-            response_format="json"
+            response_format="json",
+            enable_thinking=True
         )
 
         return response if isinstance(response, dict) else {}
