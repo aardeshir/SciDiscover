@@ -2,7 +2,7 @@
 Main SciAgent implementation following SciAgents architecture
 Enhanced with KG-COI graph reasoning
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 from .llm_manager import LLMManager
 from .agents import OntologistAgent, ScientistAgent, ExpanderAgent, CriticAgent
 from .kg_reasoning import KGReasoningAgent
@@ -23,6 +23,7 @@ class SciAgent:
         self.kg_reasoner = KGReasoningAgent(self.llm_manager)
         self.debate_orchestrator = DebateOrchestrator(self.llm_manager)
         self.high_demand_mode = high_demand_mode
+        self.debate_callback = None
 
     def set_thinking_mode(self, high_demand=True):
         """
@@ -34,6 +35,16 @@ class SciAgent:
         self.high_demand_mode = high_demand
         self.llm_manager.set_thinking_mode(high_demand)
         print(f"SciAgent thinking mode set to: {'High-Demand' if high_demand else 'Low-Demand'}")
+
+    def set_debate_callback(self, callback: Callable):
+        """
+        Set a callback function that will be called whenever there's a new debate update
+        Args:
+            callback: A function that takes a debate entry dictionary as input
+        """
+        self.debate_callback = callback
+        # Pass the callback to the debate orchestrator
+        self.debate_orchestrator.set_update_callback(self.debate_callback)
 
     def analyze_mechanism(self, query: str, novelty_score: float = 0.5, include_established: bool = True) -> Dict:
         """

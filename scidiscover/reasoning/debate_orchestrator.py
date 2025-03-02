@@ -2,7 +2,7 @@
 Debate Orchestrator for scientific hypothesis refinement
 Based on the interactive debate methodology from Google's AI Coscientist
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 from .llm_manager import LLMManager
 from .agents import OntologistAgent, ScientistAgent, ExpanderAgent, CriticAgent
 import json
@@ -22,6 +22,17 @@ class DebateOrchestrator:
         self.critic = CriticAgent(llm_manager)
         self.debate_history = []
         self.debate_rounds = 3
+        self.update_callback = None  # Callback for real-time updates
+
+    def set_update_callback(self, callback: Callable):
+        """
+        Set a callback function to be called when there are new debate updates
+
+        Args:
+            callback: A function that takes a debate entry dictionary as input
+        """
+        self.update_callback = callback
+        print("Debate update callback registered")
 
     def orchestrate_debate(self, query: str, concepts: List[str], novelty_score: float = 0.5) -> Dict:
         """
@@ -244,12 +255,23 @@ class DebateOrchestrator:
 
     def _add_to_debate_history(self, agent_name: str, action_type: str, content: Dict) -> None:
         """Add an entry to the debate history"""
-        self.debate_history.append({
+        entry = {
             "agent": agent_name,
             "action": action_type,
             "content": content,
             "timestamp": datetime.datetime.now().isoformat()
-        })
+        }
+
+        # Add to local history
+        self.debate_history.append(entry)
+
+        # Call the update callback if available
+        if self.update_callback:
+            try:
+                self.update_callback(entry)
+                print(f"Real-time update sent for {agent_name} - {action_type}")
+            except Exception as e:
+                print(f"Error in debate update callback: {str(e)}")
 
     def get_debate_history(self) -> List[Dict]:
         """Get the debate history"""

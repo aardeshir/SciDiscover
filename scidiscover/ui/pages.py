@@ -24,6 +24,10 @@ def main_page():
         st.session_state.debate_history = None
     if 'high_demand_mode' not in st.session_state:
         st.session_state.high_demand_mode = True
+    if 'live_debate_updates' not in st.session_state:
+        st.session_state.live_debate_updates = []
+    if 'analysis_running' not in st.session_state:
+        st.session_state.analysis_running = False
 
     # Add controls in sidebar
     with st.sidebar:
@@ -129,8 +133,49 @@ def main_page():
 
     analyze_clicked = st.button("Analyze", type="primary")
 
+    # Create a container for live debate updates
+    live_debate_container = st.empty()
+
+    # Display live updates if analysis is running
+    if st.session_state.analysis_running:
+        with live_debate_container.container():
+            st.subheader("🔄 Scientific Analysis in Progress")
+            st.info("The analysis is running. You'll see live updates from the scientific agents below.")
+
+            if st.session_state.live_debate_updates:
+                st.markdown("### Live Scientific Agent Updates")
+                for update in st.session_state.live_debate_updates:
+                    with st.expander(f"{update['agent']} - {update['action']}", expanded=True):
+                        # Format based on action type
+                        if update['action'] == 'critique' and 'evaluation' in update['content']:
+                            st.markdown("**Key Points:**")
+
+                            # Display strengths
+                            if 'strengths' in update['content']['evaluation']:
+                                st.markdown("*Strengths:*")
+                                for strength in update['content']['evaluation']['strengths']:
+                                    st.markdown(f"- {strength}")
+
+                            # Display limitations
+                            if 'limitations' in update['content']['evaluation']:
+                                st.markdown("*Limitations:*")
+                                for limitation in update['content']['evaluation']['limitations']:
+                                    st.markdown(f"- {limitation}")
+
+                        elif update['action'] == 'initial_hypothesis' or update['action'] == 'rebuttal':
+                            if 'hypothesis' in update['content']:
+                                st.markdown(f"*Main Hypothesis:* {update['content']['hypothesis']}")
+
+    # Handle the analysis process
     if analyze_clicked and query:
         st.session_state.current_query = query
+        st.session_state.analysis_running = True
+        st.session_state.live_debate_updates = []  # Reset live updates
+
+        # Initialize the live update container
+        with live_debate_container.container():
+            st.subheader("🔄 Scientific Analysis in Progress")
+            st.info("The analysis is running. You'll see live updates from the scientific agents below.")
 
         # Create a progress bar and status message
         progress_bar = st.progress(0)
@@ -148,6 +193,15 @@ def main_page():
             # Update status
             status_message.info("Extracting scientific concepts and preparing analysis...")
             progress_bar.progress(20)
+
+            # Register the callback to update debate history in real-time
+            def update_debate_callback(entry):
+                st.session_state.live_debate_updates.append(entry)
+                # Force a rerun to update the UI
+                st.experimental_rerun()
+
+            # Pass the callback to the sci_agent
+            sci_agent.set_debate_callback(update_debate_callback)
 
             if st.session_state.use_debate:
                 # Set debate-specific status
@@ -184,14 +238,17 @@ def main_page():
 
             # Store results and clear status displays
             st.session_state.analysis_results = analysis
+            st.session_state.analysis_running = False
             status_message.empty()
             progress_bar.empty()
+            live_debate_container.empty()  # Clear the live updates container
 
         except Exception as e:
             # Show error and clear progress displays
             progress_bar.empty()
             status_message.error(f"Error in analysis: {str(e)}")
             st.error("The extended thinking analysis encountered an error. Please try again with a different query or check the logs for details.")
+            st.session_state.analysis_running = False
             return
 
     # Display results if available
