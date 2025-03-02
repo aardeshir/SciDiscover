@@ -20,11 +20,6 @@ class LLMManager:
                 messages = [
                     {
                         "role": "user",
-                        "content": "You are a scientific research assistant trained in molecular biology and bioinformatics. "
-                                 "Always provide responses in valid JSON format when requested."
-                    },
-                    {
-                        "role": "user",
                         "content": prompt
                     }
                 ]
@@ -37,10 +32,25 @@ class LLMManager:
 
                 # Extract content from response
                 content = response.content[0].text if hasattr(response, 'content') else None
-                print(f"\nRaw Claude response: {content}")
 
-                if response_format == "json" and content:
+                if not content:
+                    print("No content in Anthropic response")
+                    return {} if response_format == "json" else ""
+
+                print(f"\nRaw Anthropic response: {content[:200]}...")  # Debug log
+
+                # Clean up response for JSON parsing
+                if response_format == "json":
                     try:
+                        # Remove markdown code blocks if present
+                        if content.startswith("```json"):
+                            content = content.split("```json")[1]
+                        if content.startswith("```"):
+                            content = content.split("```")[1]
+                        if content.endswith("```"):
+                            content = content.rsplit("```", 1)[0]
+
+                        content = content.strip()
                         json_response = json.loads(content)
                         print(f"Parsed JSON successfully: {json.dumps(json_response, indent=2)[:200]}...")
                         return json_response
@@ -48,16 +58,19 @@ class LLMManager:
                         print(f"JSON parsing error: {e}")
                         print(f"Failed content: {content}")
                         return {}
-                return content or ""
+                return content
 
             elif model_preference == "openai":
-                messages = [{"role": "user", "content": prompt}]
-                if response_format == "json":
-                    messages.insert(0, {
+                messages = [
+                    {
                         "role": "system",
-                        "content": "You are a scientific analysis assistant specialized in molecular biology. "
-                                 "Always respond with valid JSON."
-                    })
+                        "content": "You are a scientific analysis assistant specialized in molecular biology. Always provide clear, accurate responses."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
 
                 response = self.openai_client.chat.completions.create(
                     model=OPENAI_MODEL,
