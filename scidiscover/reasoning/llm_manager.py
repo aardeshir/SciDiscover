@@ -19,7 +19,7 @@ class LLMManager:
             print(f"Prompt: {prompt[:200]}...")  # Print first 200 chars of prompt
 
             if model_preference == "anthropic":
-                thinking_prompt = """
+                thinking_prompt = f"""
                 Use extended thinking mode to analyze this query thoroughly.
                 Show your reasoning process before providing the final response.
 
@@ -30,79 +30,68 @@ class LLMManager:
                 4. Methodological considerations
                 5. Practical implications
 
-                Structure your response to include both:
-                1. Your thinking process (prefix with "THINKING PROCESS:")
-                2. The final formatted answer (prefix with "FINAL ANALYSIS:")
+                Structure your response as follows:
+                1. Start with "THINKING PROCESS:" followed by your detailed analysis
+                2. End with "FINAL ANALYSIS:" followed by the formatted answer
 
-                Original Query:
-                """ + prompt
+                Query:
+                {prompt}
+                """
 
-                messages = [
-                    {
-                        "role": "user",
-                        "content": thinking_prompt if enable_thinking else prompt
-                    }
-                ]
+                print(f"Sending request to Claude with thinking enabled: {enable_thinking}")
 
-                print(f"Sending request to Claude with model: {ANTHROPIC_MODEL}")
-                response = None
-                full_content = ""
-
-                # Use streaming for long responses
-                stream = self.anthropic_client.messages.stream(
+                response = self.anthropic_client.messages.create(
                     model=ANTHROPIC_MODEL,
                     max_tokens=64000 if enable_thinking else 4000,
-                    messages=messages,
+                    messages=[{
+                        "role": "user",
+                        "content": thinking_prompt if enable_thinking else prompt
+                    }],
                     temperature=0.3
                 )
 
-                # Collect streamed response
-                for chunk in stream:
-                    if chunk.type == "content_block_delta":
-                        if chunk.delta.text:
-                            full_content += chunk.delta.text
-                    elif chunk.type == "message_delta":
-                        response = chunk
+                # Extract content from response
+                content = response.content[0].text if hasattr(response, 'content') and response.content else None
 
-                if not full_content:
+                if not content:
                     print("No content in Anthropic response")
                     return {} if response_format == "json" else ""
 
-                print(f"\nCollected response length: {len(full_content)}")
-                print(f"Sample of response: {full_content[:200]}...")
+                print(f"\nResponse length: {len(content)}")
+                print(f"Sample response: {content[:200]}...")
 
                 # Process response based on format
                 if response_format == "json":
                     try:
                         # First find the JSON part
-                        if "```json" in full_content:
-                            json_content = full_content.split("```json")[1].split("```")[0]
-                        elif "FINAL ANALYSIS:" in full_content:
-                            json_content = full_content.split("FINAL ANALYSIS:")[1].strip()
+                        if "```json" in content:
+                            json_content = content.split("```json")[1].split("```")[0]
+                        elif "FINAL ANALYSIS:" in content:
+                            json_content = content.split("FINAL ANALYSIS:")[1].strip()
                         else:
-                            json_content = full_content
+                            json_content = content
 
                         # Clean up and parse JSON
                         json_content = json_content.strip()
                         result = json.loads(json_content)
 
                         # Add thinking process if available
-                        if enable_thinking and "THINKING PROCESS:" in full_content:
-                            thinking = full_content.split("THINKING PROCESS:")[1]
+                        if enable_thinking and "THINKING PROCESS:" in content:
+                            thinking = content.split("THINKING PROCESS:")[1]
                             if "FINAL ANALYSIS:" in thinking:
                                 thinking = thinking.split("FINAL ANALYSIS:")[0]
                             thinking = thinking.strip()
                             if isinstance(result, dict):
                                 result["thinking_process"] = thinking
 
-                        print(f"Parsed JSON successfully: {json.dumps(result, indent=2)[:200]}...")
+                        print(f"Parsed JSON successfully: {str(result)[:200]}...")
                         return result
                     except json.JSONDecodeError as e:
                         print(f"JSON parsing error: {e}")
-                        print(f"Failed content: {full_content}")
+                        print(f"Failed content: {content}")
                         return {}
 
-                return full_content
+                return content
 
             elif model_preference == "openai":
                 # OpenAI implementation remains unchanged
@@ -172,7 +161,7 @@ class LLMManager:
         """
 
         response = self.generate_response(prompt, model_preference="anthropic", 
-                                       response_format="json", enable_thinking=True)
+                                      response_format="json", enable_thinking=True)
         if isinstance(response, dict):
             return response
 
