@@ -1,12 +1,6 @@
 import streamlit as st
 from ..reasoning.sci_agent import SciAgent
 from ..knowledge.pubtator import PubTatorClient
-from ..collaboration.gamification import GamificationManager
-from .components import (
-    render_collaborative_hypothesis,
-    render_user_achievements,
-    render_concept_network
-)
 
 def main_page():
     st.title("SciDiscover")
@@ -15,7 +9,7 @@ def main_page():
     Powered by advanced language models and scientific knowledge bases.
     """)
 
-    # Initialize session state first
+    # Initialize session state
     if 'analysis_results' not in st.session_state:
         st.session_state.analysis_results = None
     if 'current_query' not in st.session_state:
@@ -28,35 +22,30 @@ def main_page():
     # Initialize managers
     sci_agent = SciAgent()
     pubtator = PubTatorClient()
-    gamification = GamificationManager()
 
     # Add novelty controls in sidebar
     with st.sidebar:
         st.header("Analysis Controls")
 
-        # Novelty slider with session state
+        # Novelty slider
         novelty_score = st.slider(
             "Novelty Level",
             min_value=0.0,
             max_value=1.0,
             value=st.session_state.novelty_score,
-            help="0: Well-established mechanisms, 1: Novel/recent discoveries",
-            key="novelty_slider"
+            help="0: Well-established mechanisms, 1: Novel/recent discoveries"
         )
         st.session_state.novelty_score = novelty_score
 
-        # Include established mechanisms checkbox with session state
+        # Include established mechanisms checkbox
         include_established = st.checkbox(
             "Include established mechanisms",
             value=st.session_state.include_established,
-            help="Always include well-known pathways regardless of novelty setting",
-            key="established_checkbox"
+            help="Always include well-known pathways regardless of novelty setting"
         )
         st.session_state.include_established = include_established
 
-        # Render user achievements
-        render_user_achievements(gamification)
-
+    # Main query input
     query = st.text_area(
         "Enter your scientific query:",
         height=100,
@@ -69,12 +58,16 @@ def main_page():
     if analyze_clicked and query:
         st.session_state.current_query = query
         with st.spinner("Performing deep scientific analysis..."):
-            analysis = sci_agent.analyze_mechanism(
-                query,
-                novelty_score=novelty_score,
-                include_established=include_established
-            )
-            st.session_state.analysis_results = analysis
+            try:
+                analysis = sci_agent.analyze_mechanism(
+                    query,
+                    novelty_score=novelty_score,
+                    include_established=include_established
+                )
+                st.session_state.analysis_results = analysis
+            except Exception as e:
+                st.error(f"Error in analysis: {str(e)}")
+                return
 
     # Display results if available
     if st.session_state.analysis_results:
@@ -126,16 +119,3 @@ def main_page():
         # Show validation insights
         with st.expander("View Validation Analysis"):
             st.markdown(analysis["validation"])
-
-        # Add collaborative hypothesis building
-        st.markdown("---")
-        render_collaborative_hypothesis(
-            gamification,
-            hypothesis_id=query[:50]  # Use truncated query as hypothesis ID
-        )
-
-        # Display concept network
-        if "graph_analysis" in analysis:
-            st.markdown("---")
-            st.header("Knowledge Graph Visualization")
-            render_concept_network(analysis["graph_analysis"].get("concept_paths"))
