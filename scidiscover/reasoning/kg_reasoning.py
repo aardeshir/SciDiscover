@@ -15,39 +15,31 @@ class KGReasoningAgent:
                              enable_thinking: bool = True) -> Dict:
         """Analyze molecular mechanisms using graph path exploration"""
         try:
-            # Validate inputs
+            # Basic validation
             if not query or not concepts:
                 return self._create_error_response("Missing required inputs")
 
-            # Build analysis prompt
-            analysis_prompt = f"""Analyze these molecular mechanisms in detail:
+            # Build prompt
+            prompt = f"""Analyze this molecular mechanism query and provide insights.
 
-Scientific Query: {query}
-
+Query: {query}
 Key Concepts: {', '.join(concepts)}
 
-Analysis Parameters:
-- Novelty Score: {novelty_score} (0-1 scale, higher means more novel/recent discoveries)
-- Include Established Mechanisms: {include_established}
+Parameters:
+- Novelty Level: {novelty_score} (0-1, higher = more novel/recent)
+- Include Known Mechanisms: {include_established}
 
-Provide a comprehensive analysis including:
-1. Key molecular pathways and their interactions
-2. Gene regulation and expression patterns
-3. Temporal sequence of events
-4. Supporting experimental evidence
-5. Clinical and therapeutic implications
+Analyze the molecular pathways, mechanisms, genes, and evidence."""
 
-Focus on scientific accuracy and mechanistic details."""
-
-            # Get analysis from LLM
+            # Get analysis
             analysis = self.llm_manager.generate_response(
-                analysis_prompt,
+                prompt,
                 model_preference="anthropic",
                 response_format="json",
                 enable_thinking=enable_thinking
             )
 
-            # Validate response structure
+            # Validate response
             if not isinstance(analysis, dict):
                 return self._create_error_response("Invalid response format")
 
@@ -55,8 +47,8 @@ Focus on scientific accuracy and mechanistic details."""
             if not isinstance(primary, dict):
                 return self._create_error_response("Invalid analysis structure")
 
-            # Build validated response
-            result = {
+            # Return validated response
+            return {
                 "primary_analysis": {
                     "pathways": primary.get("pathways", []),
                     "genes": primary.get("genes", []),
@@ -69,19 +61,7 @@ Focus on scientific accuracy and mechanistic details."""
                 "confidence_score": float(analysis.get("confidence_score", 0))
             }
 
-            # Verify content
-            print("Validating analysis content...")
-            if not result["primary_analysis"]["pathways"]:
-                print("Warning: No pathways found")
-            if not result["primary_analysis"]["genes"]:
-                print("Warning: No genes found")
-            if not result["primary_analysis"]["mechanisms"] or result["primary_analysis"]["mechanisms"] == "No mechanism analysis available":
-                print("Warning: No mechanism description")
-
-            return result
-
         except Exception as e:
-            print(f"Error in mechanism analysis: {str(e)}")
             return self._create_error_response(str(e))
 
     def _create_error_response(self, error_message: str) -> Dict:
@@ -109,11 +89,7 @@ Focus on scientific accuracy and mechanistic details."""
             prompt = f"""Validate this scientific hypothesis:
 {json.dumps(hypothesis, indent=2)}
 
-Provide validation analysis including:
-1. Supported claims
-2. Missing evidence
-3. Alternative mechanisms
-4. Confidence assessment"""
+Analyze evidence support and provide validation."""
 
             validation = self.llm_manager.generate_response(
                 prompt,

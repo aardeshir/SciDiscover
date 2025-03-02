@@ -16,72 +16,71 @@ class LLMManager:
         """Generate response using specified LLM"""
         try:
             if model_preference == "anthropic":
-                # Build basic prompt
-                base_prompt = """You are a scientific analysis expert specializing in molecular biology.
-Your task is to analyze the provided query and return a response following the exact format specified.
-Format your response as a valid JSON object, nothing else."""
+                # Simple message template
+                message = {
+                    "role": "user",
+                    "content": f"""You are a molecular biology expert. Analyze this query and provide detailed scientific insights.
 
-                # Add JSON structure for response format
-                if response_format == "json":
-                    format_guide = """
-Your response must be a valid JSON object with exactly these fields:
-{
-    "primary_analysis": {
-        "pathways": ["Detailed pathway descriptions"],
+Query: {prompt}
+
+Return ONLY a valid JSON object with this structure:
+{{
+    "primary_analysis": {{
+        "pathways": ["List each pathway with clear description"],
         "genes": [
-            {"name": "GENE_NAME", "role": "Detailed description of gene's role"}
+            {{"name": "Gene symbol", "role": "Detailed role description"}}
         ],
-        "mechanisms": "Comprehensive mechanism description",
+        "mechanisms": "Detailed mechanism description",
         "timeline": ["Key temporal events"],
-        "evidence": ["Supporting experimental evidence"],
-        "implications": ["Clinical and therapeutic implications"]
-    },
-    "validation": "Validation analysis",
+        "evidence": ["Supporting evidence"],
+        "implications": ["Clinical implications"]
+    }},
+    "validation": "Validation summary",
     "confidence_score": 0.85
-}"""
-                    final_prompt = f"{base_prompt}\n\n{format_guide}\n\nQuery to analyze:\n{prompt}"
-                else:
-                    final_prompt = f"{base_prompt}\n\nQuery to analyze:\n{prompt}"
+}}"""
+                }
 
-                # Make API request
                 try:
-                    print("Sending request to Claude...")
+                    # Get response
                     response = self.anthropic_client.messages.create(
                         model=ANTHROPIC_MODEL,
                         max_tokens=4000,
-                        messages=[{"role": "user", "content": final_prompt}],
+                        messages=[message],
                         temperature=0.1
                     )
 
-                    # Extract and validate content
+                    # Extract content
                     content = response.content[0].text if hasattr(response, 'content') and response.content else ""
                     if not content:
-                        print("Empty response from Claude")
-                        return {}
+                        return {} if response_format == "json" else ""
 
-                    # Handle JSON parsing
+                    # Parse JSON
                     if response_format == "json":
                         try:
-                            result = json.loads(content)
-                            if not isinstance(result, dict):
-                                print("Response is not a dictionary")
-                                return {}
+                            # Clean up response
+                            content = content.strip()
+                            if content.startswith("```json"):
+                                content = content.split("```json")[1]
+                            if content.startswith("```"):
+                                content = content.split("```")[1]
+                            if content.endswith("```"):
+                                content = content.rsplit("```", 1)[0]
 
-                            if "primary_analysis" not in result:
-                                print("Missing primary_analysis field")
+                            # Parse JSON
+                            result = json.loads(content.strip())
+
+                            # Validate structure
+                            if not isinstance(result, dict) or "primary_analysis" not in result:
                                 return {}
 
                             return result
 
-                        except json.JSONDecodeError as e:
-                            print(f"JSON parsing error: {str(e)}")
-                            print(f"Failed content: {content[:200]}...")
+                        except json.JSONDecodeError:
                             return {}
 
                     return content
 
-                except Exception as e:
-                    print(f"Claude API error: {str(e)}")
+                except Exception:
                     return {} if response_format == "json" else ""
 
             elif model_preference == "openai":
@@ -109,8 +108,7 @@ Your response must be a valid JSON object with exactly these fields:
                         return {}
                 return content
 
-        except Exception as e:
-            print(f"Error in generate_response: {str(e)}")
+        except Exception:
             return {} if response_format == "json" else ""
 
     def analyze_scientific_text(self, text: str) -> Dict[str, Any]:
@@ -118,14 +116,15 @@ Your response must be a valid JSON object with exactly these fields:
         if not text:
             return {}
 
-        prompt = f"""Analyze this scientific text and extract key insights.
-Format your response as a valid JSON object with these sections:
-1. Key concepts
-2. Relationships between concepts
-3. Potential hypotheses
-4. Research implications
+        prompt = f"""Analyze this scientific text and extract key insights:
 
-Text: {text}"""
+Text: {text}
+
+Return a JSON object with these sections:
+- concepts: List of key concepts
+- relationships: List of concept relationships
+- hypotheses: List of potential hypotheses
+- implications: List of research implications"""
 
         response = self.generate_response(
             prompt,
