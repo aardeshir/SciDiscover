@@ -198,7 +198,7 @@ def main_page():
             def update_debate_callback(entry):
                 st.session_state.live_debate_updates.append(entry)
                 # Force a rerun to update the UI
-                st.experimental_rerun()
+                # st.experimental_rerun() - removed as it doesn't work
 
             # Pass the callback to the sci_agent
             sci_agent.set_debate_callback(update_debate_callback)
