@@ -142,19 +142,19 @@ def render_collaborative_hypothesis(gamification_manager: GamificationManager, h
         evidence_score = st.slider(
             "Evidence Strength",
             0.0, 1.0, 0.5,
-            help="Rate the strength of supporting evidence"
+            help="Rate the strength of supporting evidence (40 points max)"
         )
     with col2:
         novelty_score = st.slider(
             "Novelty Score",
             0.0, 1.0, 0.5,
-            help="Rate how novel this contribution is"
+            help="Rate how novel this contribution is (30 points max)"
         )
 
     # References
     references = st.text_area(
         "Supporting References",
-        help="Enter PubMed IDs or DOIs, one per line"
+        help="Enter PubMed IDs or DOIs, one per line. Each reference = 5 points (20 points max)"
     ).split('\n')
 
     if st.button("Submit Contribution"):
@@ -173,20 +173,28 @@ def render_collaborative_hypothesis(gamification_manager: GamificationManager, h
             with st.expander("View Point Breakdown"):
                 st.markdown("""
                 **Points Breakdown:**
-                - Evidence Strength: {:.0f} points
-                - Novelty Score: {:.0f} points
-                - References: {:.0f} points
+                - Evidence Strength: {:.0f} points (based on evidence strength slider)
+                - Novelty Score: {:.0f} points (based on novelty assessment)
+                - References: {:.0f} points ({} references provided)
                 """.format(
                     evidence_score * 40,  # Max 40 points for evidence
                     novelty_score * 30,   # Max 30 points for novelty
-                    min(len(references) * 5, 20)  # Max 20 points for references
+                    min(len(references) * 5, 20),  # Max 20 points for references
+                    len([ref for ref in references if ref.strip()])
                 ))
 
                 # Show progress to next level
                 achievements = gamification_manager.get_user_achievements(
                     st.session_state.get('user_id', 'anonymous')
                 )
-                st.markdown(f"**Current Level:** {achievements['expertise_level']}")
+                st.markdown(f"""
+                **Current Level:** {achievements['expertise_level']}
+
+                **How to earn more points:**
+                - Add strong scientific evidence (up to 40 points)
+                - Contribute novel insights (up to 30 points)
+                - Include more references (5 points each, up to 20 points)
+                """)
 
                 # Calculate points needed for next level
                 current_score = achievements['total_score']
@@ -195,7 +203,15 @@ def render_collaborative_hypothesis(gamification_manager: GamificationManager, h
                     if threshold > current_score
                 ), 5000)
 
-                st.markdown(f"**Points needed for next level:** {next_level_threshold - current_score}")
+                st.markdown(f"""
+                **Points needed for next level:** {next_level_threshold - current_score}
+
+                **Level Progression:**
+                - Research Assistant → Postdoc Researcher: 100 points
+                - Postdoc Researcher → Senior Scientist: 500 points
+                - Senior Scientist → Principal Investigator: 1000 points
+                - Principal Investigator → Distinguished Researcher: 5000 points
+                """)
 
 def render_user_achievements(gamification_manager: GamificationManager):
     """Render user achievements and stats"""
