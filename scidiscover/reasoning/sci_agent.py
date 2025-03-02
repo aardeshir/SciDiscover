@@ -33,16 +33,49 @@ class SciAgent:
             # Step 1: Ontological Analysis
             print("Starting ontological analysis...")
             concepts = self.ontologist.define_concepts(query)
+            print("Ontologist response type:", type(concepts))
+            print("Ontologist response:", concepts)
 
             if not concepts or not isinstance(concepts, dict):
-                return {"error": "Failed to extract concepts"}
+                print("Invalid concept response:", concepts)
+                return {
+                    "error": "Failed to extract concepts",
+                    "primary_analysis": {
+                        "pathways": [],
+                        "genes": [],
+                        "mechanisms": "Analysis failed - concept extraction error",
+                        "timeline": [],
+                        "evidence": [],
+                        "implications": []
+                    },
+                    "confidence_score": 0
+                }
 
-            # Step 2: Graph-based Analysis
-            print("Performing graph-based analysis...")
+            # Extract concept list
             concept_list = []
             for category in ["molecular_components", "cellular_processes", 
                            "regulatory_mechanisms", "developmental_context"]:
-                concept_list.extend(concepts.get(category, []))
+                if category in concepts:
+                    concept_list.extend(concepts[category])
+
+            if not concept_list:
+                print("No concepts found in categories")
+                return {
+                    "error": "No relevant concepts found",
+                    "primary_analysis": {
+                        "pathways": [],
+                        "genes": [],
+                        "mechanisms": "Analysis failed - no concepts identified",
+                        "timeline": [],
+                        "evidence": [],
+                        "implications": []
+                    },
+                    "confidence_score": 0
+                }
+
+            # Step 2: Graph-based Analysis
+            print("Performing graph-based analysis...")
+            print(f"Analyzing concepts: {concept_list}")
 
             graph_analysis = self.kg_reasoner.analyze_mechanism_path(
                 query, 
@@ -51,93 +84,29 @@ class SciAgent:
                 include_established=include_established
             )
 
-            # Step 3: Initial Hypothesis Generation
-            print("Generating initial hypothesis...")
-            initial_hypothesis = self.scientist.generate_hypothesis(
-                {
-                    **concepts,
-                    "graph_evidence": graph_analysis["knowledge_graph"],
-                    "novelty_params": {
-                        "score": novelty_score,
-                        "include_established": include_established
-                    }
-                }
-            )
+            if "error" in graph_analysis:
+                print("Error in graph analysis:", graph_analysis["error"])
+                return graph_analysis
 
-            if not initial_hypothesis or not isinstance(initial_hypothesis, dict):
-                return {
-                    "error": "Failed to generate hypothesis",
-                    "concepts": concepts
-                }
-
-            # Step 4: Hypothesis Expansion
-            print("Expanding hypothesis...")
-            expanded = self.expander.expand_hypothesis(
-                {
-                    **initial_hypothesis,
-                    "novelty_score": novelty_score,
-                    "include_established": include_established
-                }
-            )
-
-            if not expanded or not isinstance(expanded, dict):
-                return {
-                    "error": "Failed to expand hypothesis",
-                    "initial_hypothesis": initial_hypothesis
-                }
-
-            # Step 5: Graph-based Validation
-            print("Validating with knowledge graph...")
-            graph_validation = self.kg_reasoner.validate_hypothesis(
-                {
-                    **initial_hypothesis,
-                    "concept_paths": graph_analysis["concept_paths"],
-                    "novelty_score": novelty_score
-                }
-            )
-
-            # Step 6: Critical Review
-            print("Performing critical review...")
-            full_hypothesis = {
-                **initial_hypothesis,
-                "expanded_analysis": expanded,
-                "graph_validation": graph_validation,
-                "novelty_params": {
-                    "score": novelty_score,
-                    "include_established": include_established
-                }
-            }
-            review = self.critic.review_hypothesis(full_hypothesis)
-
-            # Combine all analyses into final output
+            # Return the analysis results
             return {
-                "primary_analysis": {
-                    "pathways": initial_hypothesis["mechanisms"]["pathways"] + 
-                               expanded["expanded_mechanisms"]["additional_pathways"],
-                    "genes": initial_hypothesis["mechanisms"]["genes"],
-                    "mechanisms": initial_hypothesis["hypothesis"],
-                    "timeline": initial_hypothesis["mechanisms"]["timeline"],
-                    "evidence": initial_hypothesis["evidence"],
-                    "implications": expanded["therapeutic_implications"]
-                },
-                "graph_analysis": {
-                    "concept_paths": graph_analysis["concept_paths"],
-                    "mechanistic_insights": graph_analysis["hypothesis"],
-                    "validation": graph_validation
-                },
-                "expanded_analysis": {
-                    "pathway_interactions": expanded["expanded_mechanisms"]["pathway_interactions"],
-                    "system_effects": expanded["expanded_mechanisms"]["system_effects"],
-                    "research_priorities": expanded["research_priorities"]
-                },
-                "validation": review["evaluation"],
-                "confidence_score": review["confidence_score"],
-                "novelty_score": novelty_score
+                "primary_analysis": graph_analysis["primary_analysis"],
+                "validation": graph_analysis.get("validation", "No validation available"),
+                "confidence_score": graph_analysis.get("confidence_score", 0),
+                "graph_analysis": graph_analysis.get("graph_analysis", {})
             }
 
         except Exception as e:
             print(f"Error in analysis: {str(e)}")
             return {
                 "error": f"Analysis error: {str(e)}",
-                "details": "An error occurred during the multi-agent analysis process"
+                "primary_analysis": {
+                    "pathways": [],
+                    "genes": [],
+                    "mechanisms": "Analysis failed - unexpected error",
+                    "timeline": [],
+                    "evidence": [],
+                    "implications": []
+                },
+                "confidence_score": 0
             }
