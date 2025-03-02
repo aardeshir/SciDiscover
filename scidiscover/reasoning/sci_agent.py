@@ -25,13 +25,20 @@ class SciAgent:
         6. Cellular components involved
         7. Potential therapeutic implications
 
-        Format the response as a structured JSON with the following fields:
-        - pathways: List of relevant signaling pathways
-        - genes: List of genes with their roles
-        - mechanisms: Detailed molecular mechanisms
-        - timeline: Temporal sequence of events
-        - evidence: Key experimental findings
-        - implications: Clinical/therapeutic relevance
+        Return a JSON object with the following structure:
+        {{
+            "pathways": ["List of relevant signaling pathways"],
+            "genes": [
+                {{
+                    "name": "Gene name",
+                    "role": "Detailed role in the mechanism"
+                }}
+            ],
+            "mechanisms": "Detailed description of molecular mechanisms",
+            "timeline": ["Temporal sequence of events"],
+            "evidence": ["Key experimental findings"],
+            "implications": "Clinical and therapeutic relevance"
+        }}
 
         Focus on scientific accuracy and detail.
         """
@@ -39,55 +46,64 @@ class SciAgent:
         # Use Claude for primary analysis
         mechanism_analysis = self.llm_manager.generate_response(
             analysis_prompt, 
-            model_preference="anthropic"
+            model_preference="anthropic",
+            response_format="json"
         )
+
+        try:
+            primary_analysis = json.loads(mechanism_analysis)
+        except json.JSONDecodeError:
+            primary_analysis = {
+                "error": "Failed to parse primary analysis",
+                "raw_response": mechanism_analysis
+            }
+            return primary_analysis
 
         # Validate with OpenAI
         validation_prompt = f"""
         Validate and enhance this molecular mechanism analysis:
-        {mechanism_analysis}
+        {json.dumps(primary_analysis, indent=2)}
 
         Check for:
         1. Scientific accuracy
         2. Missing key pathways
         3. Additional relevant genes
         4. Recent discoveries
+
+        Return a JSON object with your validation findings.
         """
 
         validation = self.llm_manager.generate_response(
             validation_prompt,
-            model_preference="openai"
+            model_preference="openai",
+            response_format="json"
         )
 
         try:
-            # Combine and structure the analysis
-            combined_analysis = {
-                "primary_analysis": json.loads(mechanism_analysis),
-                "validation": json.loads(validation),
-                "confidence_score": self._calculate_confidence(
-                    mechanism_analysis,
-                    validation
-                )
+            validation_data = json.loads(validation)
+            confidence_score = self._calculate_confidence(primary_analysis, validation_data)
+
+            return {
+                "primary_analysis": primary_analysis,
+                "validation": validation_data,
+                "confidence_score": confidence_score
             }
 
-            return combined_analysis
-
         except json.JSONDecodeError:
-            print("Error parsing LLM response as JSON")
             return {
-                "error": "Failed to parse analysis",
-                "raw_analysis": mechanism_analysis,
+                "primary_analysis": primary_analysis,
+                "error": "Failed to parse validation",
                 "raw_validation": validation
             }
 
-    def _calculate_confidence(self, analysis: str, validation: str) -> float:
+    def _calculate_confidence(self, analysis: Dict, validation: Dict) -> float:
         """
         Calculate confidence score based on agreement between analyses
         """
         validation_prompt = f"""
         Calculate a confidence score (0-1) for these scientific analyses:
-        Analysis 1: {analysis}
-        Analysis 2: {validation}
+        Analysis 1: {json.dumps(analysis)}
+        Analysis 2: {json.dumps(validation)}
 
         Consider:
         1. Agreement on key mechanisms
@@ -95,15 +111,17 @@ class SciAgent:
         3. Completeness of explanation
         4. Scientific rigor
 
-        Return only the numeric score.
+        Return a JSON object with the structure: {{"confidence": float}}
         """
 
-        score = self.llm_manager.generate_response(
+        score_response = self.llm_manager.generate_response(
             validation_prompt,
-            model_preference="anthropic"
+            model_preference="anthropic",
+            response_format="json"
         )
 
         try:
-            return float(score)
-        except ValueError:
+            score_data = json.loads(score_response)
+            return float(score_data.get("confidence", 0.5))
+        except (json.JSONDecodeError, ValueError):
             return 0.5  # Default score if parsing fails
