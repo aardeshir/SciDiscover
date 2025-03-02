@@ -64,14 +64,20 @@ class LLMManager:
 
                 # Use streaming for long-running operations to avoid timeouts
                 full_content = ""
+
+                # Configure thinking parameter correctly based on mode
+                thinking_param = None
+                if self.thinking_budget > 0:
+                    thinking_param = {
+                        "type": "enabled",
+                        "budget_tokens": self.thinking_budget
+                    }
+
                 with self.anthropic_client.beta.messages.stream(
                     model=self.anthropic_model,
                     max_tokens=self.max_tokens,
                     messages=messages,
-                    thinking={
-                        "type": "enabled" if self.thinking_budget > 0 else "disabled",
-                        "budget_tokens": self.thinking_budget if self.thinking_budget > 0 else None
-                    } if self.thinking_budget > 0 else None,
+                    thinking=thinking_param,
                     betas=[ANTHROPIC_BETA_HEADER]
                 ) as stream:
                     # Initialize to store thinking process
@@ -226,14 +232,19 @@ class LLMManager:
             full_content = ""
             thinking_text = ""
 
+            # Configure thinking parameter correctly based on mode
+            thinking_param = None
+            if self.thinking_budget > 0:
+                thinking_param = {
+                    "type": "enabled",
+                    "budget_tokens": self.thinking_budget
+                }
+
             with self.anthropic_client.beta.messages.stream(
                 model=self.anthropic_model,
                 max_tokens=self.max_tokens,
                 messages=messages,
-                thinking={
-                    "type": "enabled" if self.thinking_budget > 0 else "disabled",
-                    "budget_tokens": self.thinking_budget if self.thinking_budget > 0 else None
-                } if self.thinking_budget > 0 else None,
+                thinking=thinking_param,
                 betas=[ANTHROPIC_BETA_HEADER]
             ) as stream:
                 print("Streaming scientific analysis from Claude...")
