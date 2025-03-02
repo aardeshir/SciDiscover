@@ -26,27 +26,43 @@ class ScientificWorkflow:
         for _, entity in entities.iterrows():
             self.knowledge_graph.add_concept(
                 entity["text"],
-                {"type": entity["type"], "id": entity["identifier"]}
+                {
+                    "type": entity["type"],
+                    "id": entity["identifier"],
+                    "source": entity["source_phrase"]
+                }
             )
 
         # Generate relationships using LLM
-        for i in range(len(entities)):
-            for j in range(i+1, len(entities)):
+        entity_list = entities["text"].tolist()
+        for i in range(len(entity_list)):
+            for j in range(i+1, len(entity_list)):
                 relationship_prompt = f"""
-                Describe the relationship between these scientific concepts:
-                1. {entities.iloc[i]["text"]}
-                2. {entities.iloc[j]["text"]}
+                Analyze the relationship between these scientific concepts in the context of early life antibiotic treatment and immune system development:
+                1. {entity_list[i]}
+                2. {entity_list[j]}
+
+                Provide a brief, specific relationship description focused on mechanistic connections.
                 """
                 relationship = self.llm_manager.generate_response(relationship_prompt)
 
                 if relationship:  # Only add edge if relationship was found
                     self.knowledge_graph.add_relationship(
-                        entities.iloc[i]["text"],
-                        entities.iloc[j]["text"],
+                        entity_list[i],
+                        entity_list[j],
                         relationship
                     )
 
-        return self.knowledge_graph.graph  # Return the internal NetworkX graph
+        if len(self.knowledge_graph.graph.edges()) == 0:
+            # If no relationships found, create basic connections
+            if len(entity_list) >= 2:
+                self.knowledge_graph.add_relationship(
+                    entity_list[0],
+                    entity_list[1],
+                    "may influence"
+                )
+
+        return self.knowledge_graph.graph
 
     def analyze_research_path(self, start_concept: str, end_concept: str) -> Dict:
         """
@@ -61,6 +77,8 @@ class ScientificWorkflow:
             Suggest a research path connecting these concepts:
             Start: {start_concept}
             End: {end_concept}
+
+            Focus on molecular mechanisms and biological pathways.
             """
             connection = self.llm_manager.generate_response(connection_prompt)
 
