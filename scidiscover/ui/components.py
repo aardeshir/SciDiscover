@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import networkx as nx
 from ..collaboration.gamification import GamificationManager
+import time
 
 def render_header():
     st.title("SciDiscover")
@@ -213,30 +214,68 @@ def render_collaborative_hypothesis(gamification_manager: GamificationManager, h
                 - Principal Investigator → Distinguished Researcher: 5000 points
                 """)
 
+def render_level_progress_bar(current_score: int, current_level: str):
+    """Render an animated progress bar showing research level progress"""
+    # Define level thresholds
+    level_thresholds = {
+        "Research Assistant": (0, 100),
+        "Postdoc Researcher": (100, 500),
+        "Senior Scientist": (500, 1000),
+        "Principal Investigator": (1000, 5000),
+        "Distinguished Researcher": (5000, 5000)
+    }
+
+    # Get current level range
+    start_points, end_points = level_thresholds[current_level]
+
+    # Calculate progress percentage
+    progress = (current_score - start_points) / (end_points - start_points)
+    progress = min(1.0, max(0.0, progress))  # Clamp between 0 and 1
+
+    # Create animated progress bar
+    st.markdown("### Research Progress")
+
+    progress_bar = st.progress(0.0)
+    status_text = st.empty()
+
+    # Animate progress bar
+    for i in range(int(progress * 100)):
+        progress_bar.progress(i/100)
+        current_points = int(start_points + (i/100) * (end_points - start_points))
+        status_text.text(f"{current_points} / {end_points} points")
+        time.sleep(0.01)
+
+    # Set final value
+    progress_bar.progress(progress)
+    status_text.text(f"{current_score} / {end_points} points")
+
+    # Show level milestones
+    st.markdown("""
+    #### Level Milestones
+    📚 Research Assistant → Postdoc Researcher: 100 points
+    🔬 Postdoc Researcher → Senior Scientist: 500 points
+    🧪 Senior Scientist → Principal Investigator: 1000 points
+    🎓 Principal Investigator → Distinguished Researcher: 5000 points
+    """)
+
 def render_user_achievements(gamification_manager: GamificationManager):
-    """Render user achievements and stats"""
+    """Render user achievements and stats with animated progress"""
     st.sidebar.subheader("Your Research Impact")
 
     user_id = st.session_state.get('user_id', 'anonymous')
     achievements = gamification_manager.get_user_achievements(user_id)
 
+    # Display basic stats
     st.sidebar.metric("Total Score", achievements["total_score"])
     st.sidebar.metric("Contributions", achievements["contributions"])
     st.sidebar.metric("Top Contribution", achievements["top_contribution"])
 
-    # Enhanced level display
+    # Show animated level progress
     level = achievements['expertise_level']
     st.sidebar.markdown(f"""
     ### Research Level
     **Current Level:** {level}
     """)
 
-    # Show level thresholds
-    if level != "Distinguished Researcher":
-        next_level = {
-            "Research Assistant": "Postdoc Researcher (100 points)",
-            "Postdoc Researcher": "Senior Scientist (500 points)",
-            "Senior Scientist": "Principal Investigator (1000 points)",
-            "Principal Investigator": "Distinguished Researcher (5000 points)"
-        }[level]
-        st.sidebar.markdown(f"**Next Level:** {next_level}")
+    # Add animated progress bar
+    render_level_progress_bar(achievements["total_score"], level)
