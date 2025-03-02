@@ -24,24 +24,32 @@ class KGReasoningAgent:
         Analyze molecular mechanisms using graph path exploration
         """
         try:
-            # Generate initial analysis
+            # First validate and process concepts
+            if not concepts:
+                raise ValueError("No concepts provided for analysis")
+
+            print(f"Starting analysis with concepts: {concepts}")
+
+            # Generate initial analysis with Claude-3's extended capabilities
             analysis_prompt = f"""
-            Analyze this scientific query:
+            Analyze this scientific query using Claude-3's 200K context window and 64K token output:
             Query: {query}
             Concepts: {', '.join(concepts)}
             Novelty Level: {novelty_score} (0: Well-established, 1: Novel/Recent)
             Include Established Mechanisms: {include_established}
 
-            Leverage Claude's extended reasoning capabilities to provide:
-            1. Primary analysis of molecular mechanisms
-            2. Temporal dynamics and regulatory circuits
-            3. Clinical and therapeutic implications
-            4. Supporting evidence and predictions
+            Provide a comprehensive scientific analysis including:
+            1. Key molecular pathways and mechanisms
+            2. Gene interactions and regulatory networks
+            3. Temporal dynamics and progression
+            4. Clinical relevance and therapeutic potential
+            5. Supporting experimental evidence
+            6. Future research directions
 
-            Return response as JSON with this structure:
+            Format your response as a JSON object with this structure:
             {{
                 "primary_analysis": {{
-                    "pathways": ["list of molecular pathways"],
+                    "pathways": ["list of key molecular pathways"],
                     "genes": [
                         {{
                             "name": "gene name",
@@ -58,24 +66,33 @@ class KGReasoningAgent:
             }}
             """
 
+            print("Generating response with anthropic...")
             analysis = self.llm_manager.generate_response(
                 analysis_prompt,
                 model_preference="anthropic",
                 response_format="json"
             )
 
+            print("Raw Anthropic response:", analysis)
+
             if isinstance(analysis, str):
                 analysis = json.loads(analysis)
+                print("Parsed JSON successfully:", analysis)
 
-            # Ensure default values if any fields are missing
-            if not isinstance(analysis, dict):
-                analysis = {}
-
+            # Validate and ensure required fields
             primary_analysis = analysis.get("primary_analysis", {})
             if not isinstance(primary_analysis, dict):
                 primary_analysis = {}
 
-            return {
+            # Build knowledge graph representation
+            print("Performing graph-based analysis...")
+            graph_data = {
+                "concept_paths": [],
+                "nodes": list(self.kg_manager.graph.nodes()),
+                "edges": list(self.kg_manager.graph.edges(data=True))
+            }
+
+            result = {
                 "primary_analysis": {
                     "pathways": primary_analysis.get("pathways", []),
                     "genes": primary_analysis.get("genes", []),
@@ -86,12 +103,11 @@ class KGReasoningAgent:
                 },
                 "validation": analysis.get("validation", "No validation available"),
                 "confidence_score": float(analysis.get("confidence_score", 0)),
-                "graph_analysis": {
-                    "concept_paths": [],
-                    "nodes": list(self.kg_manager.graph.nodes()),
-                    "edges": list(self.kg_manager.graph.edges(data=True))
-                }
+                "graph_analysis": graph_data
             }
+
+            print("Analysis completed successfully")
+            return result
 
         except Exception as e:
             print(f"Error in mechanism analysis: {str(e)}")
