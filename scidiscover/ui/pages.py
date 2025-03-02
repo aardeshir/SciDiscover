@@ -45,6 +45,19 @@ def main_page():
         )
         st.session_state.include_established = include_established
 
+        # Add information about extended thinking capabilities
+        st.markdown("---")
+        with st.expander("🧠 Extended Thinking", expanded=True):
+            st.markdown("""
+            **Enhanced with Claude 3.7 Sonnet's Extended Thinking**
+
+            Analysis now powered by:
+            - 128K token output capacity
+            - 32K token thinking budget
+            - Advanced multi-step reasoning
+            - Deeper scientific analysis
+            """)
+
     # Main query input
     query = st.text_area(
         "Enter your scientific query:",
@@ -57,7 +70,7 @@ def main_page():
 
     if analyze_clicked and query:
         st.session_state.current_query = query
-        with st.spinner("Performing deep scientific analysis..."):
+        with st.spinner("Performing deep scientific analysis with extended thinking..."):
             try:
                 analysis = sci_agent.analyze_mechanism(
                     query,
@@ -90,32 +103,64 @@ def main_page():
 
         # Display pathways
         st.subheader("Key Molecular Pathways")
-        for pathway in analysis["primary_analysis"]["pathways"]:
-            st.markdown(f"- {pathway}")
+        pathways = analysis["primary_analysis"]["pathways"]
+        if pathways:
+            for pathway in pathways:
+                st.markdown(f"- {pathway}")
+        else:
+            st.info("No specific pathways identified for this query.")
 
         # Display genes and their roles
         st.subheader("Relevant Genes and Their Roles")
-        for gene in analysis["primary_analysis"]["genes"]:
-            st.markdown(f"- **{gene['name']}**: {gene['role']}")
+        genes = analysis["primary_analysis"]["genes"]
+        if genes:
+            for gene in genes:
+                st.markdown(f"- **{gene['name']}**: {gene['role']}")
+        else:
+            st.info("No specific genes identified for this query.")
 
         # Display detailed mechanisms
         st.subheader("Detailed Molecular Mechanisms")
-        st.markdown(analysis["primary_analysis"]["mechanisms"])
+        mechanisms = analysis["primary_analysis"]["mechanisms"]
+        if mechanisms and mechanisms != "No mechanism analysis available":
+            st.markdown(mechanisms)
+        else:
+            st.info("No detailed mechanisms identified for this query.")
 
         # Display temporal sequence
         st.subheader("Temporal Sequence of Events")
-        for idx, event in enumerate(analysis["primary_analysis"]["timeline"], 1):
-            st.markdown(f"{idx}. {event}")
+        timeline = analysis["primary_analysis"]["timeline"]
+        if timeline:
+            for idx, event in enumerate(timeline, 1):
+                st.markdown(f"{idx}. {event}")
+        else:
+            st.info("No temporal sequence identified for this query.")
 
         # Display experimental evidence
         st.subheader("Supporting Experimental Evidence")
-        for evidence in analysis["primary_analysis"]["evidence"]:
-            st.markdown(f"- {evidence}")
+        evidence = analysis["primary_analysis"]["evidence"]
+        if evidence:
+            for evidence_item in evidence:
+                st.markdown(f"- {evidence_item}")
+        else:
+            st.info("No supporting evidence identified for this query.")
 
         # Display implications
         st.subheader("Clinical and Therapeutic Implications")
-        st.markdown(analysis["primary_analysis"]["implications"])
+        implications = analysis["primary_analysis"]["implications"]
+        if implications and implications != "No implications available":
+            if isinstance(implications, list):
+                for implication in implications:
+                    st.markdown(f"- {implication}")
+            else:
+                st.markdown(implications)
+        else:
+            st.info("No clinical implications identified for this query.")
 
         # Show validation insights
         with st.expander("View Validation Analysis"):
             st.markdown(analysis["validation"])
+
+        # Add citation for extended thinking capabilities
+        st.markdown("---")
+        st.caption("Analysis powered by Claude 3.7 Sonnet's extended thinking capabilities (128K output tokens, 32K thinking tokens)")

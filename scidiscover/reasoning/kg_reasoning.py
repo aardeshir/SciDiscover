@@ -31,7 +31,7 @@ class KGReasoningAgent:
             print(f"Starting analysis with concepts: {concepts}")
             print(f"Novelty score: {novelty_score}, Include established: {include_established}")
 
-            # Use the specialized scientific analysis function
+            # Use the specialized scientific analysis function with extended thinking capabilities
             scientific_analysis = self.llm_manager.analyze_scientific_query(
                 query=query,
                 concepts=concepts,
@@ -99,12 +99,12 @@ class KGReasoningAgent:
             )
 
             validation_prompt = f"""
-            Validate this scientific hypothesis using the knowledge graph evidence:
+            Validate this scientific hypothesis using the knowledge graph evidence and your extended thinking capabilities:
             Hypothesis: {hypothesis.get("hypothesis", "")}
             Graph Evidence: {json.dumps(list(relevant_subgraph.edges(data=True)), indent=2)}
             Novelty Score: {hypothesis.get("novelty_score", 0.5)}
 
-            Leverage Claude's comprehensive analysis capabilities to consider:
+            Leverage your extended thinking capabilities (32,000 tokens) to consider:
             1. Support from graph relationships
             2. Completeness of mechanistic explanation
             3. Alternative paths or mechanisms
@@ -115,6 +115,11 @@ class KGReasoningAgent:
             8. Clinical relevance
             9. Therapeutic potential
             10. Future research implications
+            11. Cross-disciplinary insights
+            12. Potential paradigm shifts
+            13. Experimental validation approaches
+            14. Computational modeling strategies
+            15. Interdisciplinary collaboration opportunities
 
             Format your response as a JSON object with this structure:
             {{
@@ -156,7 +161,11 @@ class KGReasoningAgent:
             )
 
             if isinstance(validation, str):
-                validation = json.loads(validation)
+                try:
+                    validation = json.loads(validation)
+                except json.JSONDecodeError:
+                    print("Failed to parse validation JSON response")
+                    validation = {}
 
             return validation
         except Exception as e:
