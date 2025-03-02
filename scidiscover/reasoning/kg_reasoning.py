@@ -2,7 +2,7 @@
 Knowledge Graph Reasoning Agent
 Implements scientific discovery through graph-based concept exploration
 """
-from typing import Dict, List
+from typing import Dict, List, Optional
 from ..knowledge.kg_coi import KGCOIManager
 from .llm_manager import LLMManager
 import json
@@ -55,123 +55,181 @@ class KGReasoningAgent:
             }}
         ]
         """
-        relationships = self.llm_manager.generate_response(
-            relationships_prompt,
-            model_preference="anthropic",
-            response_format="json"
-        )
+        try:
+            relationships = self.llm_manager.generate_response(
+                relationships_prompt,
+                model_preference="anthropic",
+                response_format="json"
+            )
 
-        # Build knowledge graph
-        self.kg_manager.build_concept_graph(concepts, relationships)
+            if isinstance(relationships, str):
+                relationships = json.loads(relationships)
 
-        # Sample concept paths
-        paths = []
-        for i in range(len(concepts)-1):
-            for j in range(i+1, len(concepts)):
-                concept_paths = self.kg_manager.sample_concept_paths(
-                    concepts[i],
-                    concepts[j]
-                )
-                paths.extend(concept_paths)
+            # Build knowledge graph
+            self.kg_manager.build_concept_graph(concepts, relationships)
 
-        # Generate hypothesis from paths
-        hypothesis_prompt = f"""
-        Based on these concept relationship paths:
-        {json.dumps(paths, indent=2)}
+            # Sample concept paths
+            paths = []
+            if len(concepts) > 1:  # Only try to find paths if we have at least 2 concepts
+                for i in range(len(concepts)-1):
+                    for j in range(i+1, len(concepts)):
+                        concept_paths = self.kg_manager.sample_concept_paths(
+                            concepts[i],
+                            concepts[j]
+                        )
+                        if concept_paths:  # Only extend if we found paths
+                            paths.extend(concept_paths)
 
-        Generate a detailed scientific hypothesis explaining the molecular mechanisms.
-        Novelty Level: {novelty_score} (0: Well-established, 1: Novel/Recent)
-        Include Established Mechanisms: {include_established}
+            # If no paths found, create a basic path structure
+            if not paths:
+                paths = [{"nodes": concepts[:2] if len(concepts) > 1 else concepts,
+                         "edges": [],
+                         "type": "direct"}]
 
-        Consider:
-        1. Sequential progression through each path
-        2. Mechanistic connections between concepts
-        3. Supporting experimental evidence
-        4. Potential regulatory interactions
+            # Generate hypothesis from paths
+            hypothesis_prompt = f"""
+            Based on these concept relationship paths:
+            {json.dumps(paths, indent=2)}
 
-        If novelty_score is high, emphasize:
-        - Recently discovered mechanisms
-        - Novel pathway interactions
-        - Emerging therapeutic targets
-        - Cutting-edge experimental approaches
+            Generate a detailed scientific hypothesis explaining the molecular mechanisms.
+            Novelty Level: {novelty_score} (0: Well-established, 1: Novel/Recent)
+            Include Established Mechanisms: {include_established}
 
-        If novelty_score is low or include_established is true, include:
-        - Well-validated mechanisms
-        - Classical regulatory pathways
-        - Established experimental evidence
+            Consider:
+            1. Sequential progression through each path
+            2. Mechanistic connections between concepts
+            3. Supporting experimental evidence
+            4. Potential regulatory interactions
 
-        Format your response as a JSON object with this structure:
-        {{
-            "hypothesis": "detailed hypothesis statement",
-            "mechanisms": {{
-                "pathways": ["key pathways identified"],
-                "interactions": ["mechanistic interactions"],
-                "regulation": ["regulatory mechanisms"]
-            }},
-            "evidence": ["supporting evidence"],
-            "predictions": ["testable predictions"],
-            "novelty_scores": {{
-                "pathways": float,  # Average novelty of pathways
-                "evidence": float,  # Average novelty of evidence
-                "overall": float    # Overall hypothesis novelty
+            If novelty_score is high, emphasize:
+            - Recently discovered mechanisms
+            - Novel pathway interactions
+            - Emerging therapeutic targets
+            - Cutting-edge experimental approaches
+
+            If novelty_score is low or include_established is true, include:
+            - Well-validated mechanisms
+            - Classical regulatory pathways
+            - Established experimental evidence
+
+            Format your response as a JSON object with this structure:
+            {{
+                "hypothesis": "detailed hypothesis statement",
+                "mechanisms": {{
+                    "pathways": ["key pathways identified"],
+                    "interactions": ["mechanistic interactions"],
+                    "regulation": ["regulatory mechanisms"]
+                }},
+                "evidence": ["supporting evidence"],
+                "predictions": ["testable predictions"],
+                "novelty_scores": {{
+                    "pathways": float,  # Average novelty of pathways
+                    "evidence": float,  # Average novelty of evidence
+                    "overall": float    # Overall hypothesis novelty
+                }}
             }}
-        }}
-        """
+            """
 
-        hypothesis = self.llm_manager.generate_response(
-            hypothesis_prompt,
-            model_preference="anthropic",
-            response_format="json"
-        )
+            hypothesis = self.llm_manager.generate_response(
+                hypothesis_prompt,
+                model_preference="anthropic",
+                response_format="json"
+            )
 
-        return {
-            "concept_paths": paths,
-            "hypothesis": hypothesis,
-            "knowledge_graph": {
-                "nodes": list(self.kg_manager.graph.nodes()),
-                "edges": list(self.kg_manager.graph.edges(data=True))
+            if isinstance(hypothesis, str):
+                hypothesis = json.loads(hypothesis)
+
+            return {
+                "concept_paths": paths,
+                "hypothesis": hypothesis,
+                "knowledge_graph": {
+                    "nodes": list(self.kg_manager.graph.nodes()),
+                    "edges": list(self.kg_manager.graph.edges(data=True))
+                }
             }
-        }
+
+        except Exception as e:
+            print(f"Error in mechanism path analysis: {str(e)}")
+            return {
+                "error": f"Failed to analyze mechanism paths: {str(e)}",
+                "concept_paths": [],
+                "hypothesis": {
+                    "hypothesis": "Analysis failed",
+                    "mechanisms": {"pathways": [], "interactions": [], "regulation": []},
+                    "evidence": [],
+                    "predictions": [],
+                    "novelty_scores": {"pathways": 0, "evidence": 0, "overall": 0}
+                },
+                "knowledge_graph": {"nodes": [], "edges": []}
+            }
 
     def validate_hypothesis(self, hypothesis: Dict) -> Dict:
         """
         Validate hypothesis using graph-based evidence
         """
-        relevant_subgraph = self.kg_manager.extract_subgraph(
-            hypothesis["concept_paths"][0]  # Use first path as seed
-        )
+        try:
+            # Get first valid path or empty list
+            seed_path = (hypothesis.get("concept_paths", []) or [{}])[0]
 
-        validation_prompt = f"""
-        Validate this scientific hypothesis using the knowledge graph evidence:
-        Hypothesis: {hypothesis["hypothesis"]}
-        Graph Evidence: {json.dumps(list(relevant_subgraph.edges(data=True)), indent=2)}
-        Novelty Score: {hypothesis.get("novelty_score", 0.5)}
+            # Extract subgraph using seed path if available
+            relevant_subgraph = (
+                self.kg_manager.extract_subgraph(seed_path)
+                if seed_path and "nodes" in seed_path
+                else self.kg_manager.graph
+            )
 
-        Consider:
-        1. Support from graph relationships
-        2. Completeness of mechanistic explanation
-        3. Alternative paths or mechanisms
-        4. Potential gaps in evidence
-        5. Balance between novelty and established knowledge
+            validation_prompt = f"""
+            Validate this scientific hypothesis using the knowledge graph evidence:
+            Hypothesis: {hypothesis.get("hypothesis", "")}
+            Graph Evidence: {json.dumps(list(relevant_subgraph.edges(data=True)), indent=2)}
+            Novelty Score: {hypothesis.get("novelty_score", 0.5)}
 
-        Format your response as a JSON object with this structure:
-        {{
-            "validation": {{
-                "supported_claims": ["list of supported claims"],
-                "missing_evidence": ["gaps in evidence"],
-                "alternative_mechanisms": ["other possible mechanisms"],
-                "novelty_assessment": {{
-                    "innovative_aspects": ["novel elements identified"],
-                    "established_foundations": ["well-validated components"],
-                    "score": float  # 0-1 novelty score
-                }}
-            }},
-            "confidence_score": float  # 0-1 score
-        }}
-        """
+            Consider:
+            1. Support from graph relationships
+            2. Completeness of mechanistic explanation
+            3. Alternative paths or mechanisms
+            4. Potential gaps in evidence
+            5. Balance between novelty and established knowledge
 
-        return self.llm_manager.generate_response(
-            validation_prompt,
-            model_preference="anthropic",
-            response_format="json"
-        )
+            Format your response as a JSON object with this structure:
+            {{
+                "validation": {{
+                    "supported_claims": ["list of supported claims"],
+                    "missing_evidence": ["gaps in evidence"],
+                    "alternative_mechanisms": ["other possible mechanisms"],
+                    "novelty_assessment": {{
+                        "innovative_aspects": ["novel elements identified"],
+                        "established_foundations": ["well-validated components"],
+                        "score": float  # 0-1 novelty score
+                    }}
+                }},
+                "confidence_score": float  # 0-1 score
+            }}
+            """
+
+            validation = self.llm_manager.generate_response(
+                validation_prompt,
+                model_preference="anthropic",
+                response_format="json"
+            )
+
+            if isinstance(validation, str):
+                validation = json.loads(validation)
+
+            return validation
+
+        except Exception as e:
+            print(f"Error in hypothesis validation: {str(e)}")
+            return {
+                "validation": {
+                    "supported_claims": [],
+                    "missing_evidence": ["Validation failed due to technical error"],
+                    "alternative_mechanisms": [],
+                    "novelty_assessment": {
+                        "innovative_aspects": [],
+                        "established_foundations": [],
+                        "score": 0.0
+                    }
+                },
+                "confidence_score": 0.0
+            }
