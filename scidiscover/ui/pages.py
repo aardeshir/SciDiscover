@@ -18,14 +18,42 @@ def main_page():
         st.session_state.novelty_score = 0.5
     if 'include_established' not in st.session_state:
         st.session_state.include_established = True
+    if 'use_debate' not in st.session_state:
+        st.session_state.use_debate = False
+    if 'debate_history' not in st.session_state:
+        st.session_state.debate_history = None
 
     # Initialize managers
     sci_agent = SciAgent()
     pubtator = PubTatorClient()
 
-    # Add novelty controls in sidebar
+    # Add controls in sidebar
     with st.sidebar:
         st.header("Analysis Controls")
+
+        # Analysis method selection
+        analysis_method = st.radio(
+            "Analysis Method",
+            ["Standard Analysis", "Debate-Driven Analysis (Coscientist-style)"],
+            index=0,
+            help="Choose between standard analysis or multi-agent debate approach"
+        )
+
+        st.session_state.use_debate = analysis_method == "Debate-Driven Analysis (Coscientist-style)"
+
+        # If debate is selected, show explanation
+        if st.session_state.use_debate:
+            st.info("""
+            **Debate-Driven Analysis**
+
+            Uses a multi-agent 'generate, debate, and evolve' methodology:
+            1. Initial hypothesis generation
+            2. Critical analysis and challenges
+            3. Refinement and rebuttal
+            4. Synthesis of strongest ideas
+
+            This approach mimics scientific discourse for stronger analyses.
+            """)
 
         # Novelty slider
         novelty_score = st.slider(
@@ -37,13 +65,14 @@ def main_page():
         )
         st.session_state.novelty_score = novelty_score
 
-        # Include established mechanisms checkbox
-        include_established = st.checkbox(
-            "Include established mechanisms",
-            value=st.session_state.include_established,
-            help="Always include well-known pathways regardless of novelty setting"
-        )
-        st.session_state.include_established = include_established
+        # Include established mechanisms checkbox (only for standard analysis)
+        if not st.session_state.use_debate:
+            include_established = st.checkbox(
+                "Include established mechanisms",
+                value=st.session_state.include_established,
+                help="Always include well-known pathways regardless of novelty setting"
+            )
+            st.session_state.include_established = include_established
 
         # Add information about extended thinking capabilities
         st.markdown("---")
@@ -75,7 +104,12 @@ def main_page():
         progress_bar = st.progress(0)
         status_message = st.empty()
 
-        status_message.info("Initiating extended thinking analysis with Claude 3.7 Sonnet...")
+        # Set initial status message based on analysis method
+        if st.session_state.use_debate:
+            status_message.info("Initiating debate-driven analysis with Claude 3.7 Sonnet...")
+        else:
+            status_message.info("Initiating extended thinking analysis with Claude 3.7 Sonnet...")
+
         progress_bar.progress(10)
 
         try:
@@ -83,16 +117,34 @@ def main_page():
             status_message.info("Extracting scientific concepts and preparing analysis...")
             progress_bar.progress(20)
 
-            # First status update
-            status_message.info("Performing deep scientific analysis with extended thinking (this may take a few minutes)...")
-            progress_bar.progress(40)
+            if st.session_state.use_debate:
+                # Set debate-specific status
+                status_message.info("Orchestrating multi-agent scientific debate (this may take a few minutes)...")
+                progress_bar.progress(30)
 
-            # Run the analysis
-            analysis = sci_agent.analyze_mechanism(
-                query,
-                novelty_score=novelty_score,
-                include_established=include_established
-            )
+                # Run the debate-driven analysis
+                analysis = sci_agent.analyze_mechanism_with_debate(
+                    query,
+                    novelty_score=novelty_score
+                )
+
+                # Store debate history if available
+                if hasattr(sci_agent.debate_orchestrator, 'debate_history'):
+                    st.session_state.debate_history = sci_agent.debate_orchestrator.debate_history
+            else:
+                # Set standard analysis status
+                status_message.info("Performing deep scientific analysis with extended thinking (this may take a few minutes)...")
+                progress_bar.progress(40)
+
+                # Run the standard analysis
+                analysis = sci_agent.analyze_mechanism(
+                    query,
+                    novelty_score=novelty_score,
+                    include_established=st.session_state.include_established
+                )
+
+                # Reset debate history
+                st.session_state.debate_history = None
 
             # Final status update
             status_message.success("Analysis complete!")
@@ -188,6 +240,40 @@ def main_page():
         # Show validation insights
         with st.expander("View Validation Analysis"):
             st.markdown(analysis["validation"])
+
+        # Display debate history if available and debate method was used
+        if st.session_state.debate_history and st.session_state.use_debate:
+            with st.expander("View Debate History", expanded=False):
+                st.markdown("### Multi-Agent Scientific Debate")
+                st.markdown("This analysis was refined through multiple rounds of scientific debate:")
+
+                for idx, entry in enumerate(st.session_state.debate_history):
+                    st.markdown(f"**Step {idx+1}: {entry['agent']} - {entry['action']}**")
+
+                    # Format the content differently based on action type
+                    if entry['action'] == 'critique':
+                        if 'evaluation' in entry['content']:
+                            st.markdown("**Key Points:**")
+
+                            # Display strengths
+                            if 'strengths' in entry['content']['evaluation']:
+                                st.markdown("*Strengths:*")
+                                for strength in entry['content']['evaluation']['strengths']:
+                                    st.markdown(f"- {strength}")
+
+                            # Display limitations
+                            if 'limitations' in entry['content']['evaluation']:
+                                st.markdown("*Limitations:*")
+                                for limitation in entry['content']['evaluation']['limitations']:
+                                    st.markdown(f"- {limitation}")
+
+                    elif entry['action'] == 'initial_hypothesis' or entry['action'] == 'rebuttal':
+                        if 'hypothesis' in entry['content']:
+                            st.markdown(f"*Main Hypothesis:* {entry['content']['hypothesis']}")
+
+                    # Add timestamp
+                    st.caption(f"Timestamp: {entry['timestamp']}")
+                    st.markdown("---")
 
         # Add citation for extended thinking capabilities
         st.markdown("---")

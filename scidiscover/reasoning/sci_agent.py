@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 from .llm_manager import LLMManager
 from .agents import OntologistAgent, ScientistAgent, ExpanderAgent, CriticAgent
 from .kg_reasoning import KGReasoningAgent
+from .debate_orchestrator import DebateOrchestrator
 import json
 
 class SciAgent:
@@ -20,6 +21,7 @@ class SciAgent:
         self.expander = ExpanderAgent(self.llm_manager)
         self.critic = CriticAgent(self.llm_manager)
         self.kg_reasoner = KGReasoningAgent(self.llm_manager)
+        self.debate_orchestrator = DebateOrchestrator(self.llm_manager)
 
     def analyze_mechanism(self, query: str, novelty_score: float = 0.5, include_established: bool = True) -> Dict:
         """
@@ -85,4 +87,63 @@ class SciAgent:
         except Exception as e:
             print(f"Error in analysis: {str(e)}")
             # Return a default response in case of any error
+            return self.llm_manager._generate_default_response(query)
+
+    def analyze_mechanism_with_debate(self, query: str, novelty_score: float = 0.5) -> Dict:
+        """
+        Perform scientific analysis using the debate-driven methodology
+        This implements the "generate, debate, and evolve" approach from Coscientist
+
+        Args:
+            query: Scientific query to analyze
+            novelty_score: Target novelty level (0: established, 1: novel)
+
+        Returns:
+            A comprehensive scientific analysis refined through multi-agent debate
+        """
+        try:
+            print(f"Starting debate-driven analysis of query: {query}")
+            print(f"Novelty score: {novelty_score}")
+
+            # Step 1: Extract concepts
+            concepts = []
+            try:
+                # Extract concepts with the ontologist
+                concepts_result = self.ontologist.define_concepts(query)
+                if concepts_result and isinstance(concepts_result, dict):
+                    # Extract concepts from various categories
+                    for category in ["molecular_components", "cellular_processes", 
+                                  "regulatory_mechanisms", "developmental_context"]:
+                        if category in concepts_result:
+                            concepts.extend(concepts_result[category])
+
+                # Ensure we have meaningful concepts
+                if not concepts:
+                    # Fallback: Extract key terms from the query
+                    concepts = [term.strip().lower() for term in query.split() 
+                                if len(term) > 4 and term.lower() not in 
+                                ['what', 'how', 'why', 'when', 'where', 'which', 'there', 'their']]
+                    concepts = list(set(concepts))  # Remove duplicates
+            except Exception as e:
+                print(f"Concept extraction error in debate analysis: {str(e)}")
+                # Default concepts for fallback
+                concepts = ["immune", "pathway", "regulation", "signaling", "development"]
+
+            print(f"Debate analysis with concepts: {concepts}")
+
+            # Step 2: Run the multi-agent debate
+            debate_result = self.debate_orchestrator.orchestrate_debate(
+                query,
+                concepts,
+                novelty_score=novelty_score
+            )
+
+            # Step 3: Optional - Validate with knowledge graph if needed
+            # This could be added for additional scientific grounding
+
+            # Return the debate-refined analysis
+            return debate_result
+
+        except Exception as e:
+            print(f"Error in debate-driven analysis: {str(e)}")
             return self.llm_manager._generate_default_response(query)
