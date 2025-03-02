@@ -36,8 +36,9 @@ class LLMManager:
 
                 print(f"Sending request to Claude with model: {self.anthropic_model}")
 
-                # Configure request with extended thinking capabilities
-                response = self.anthropic_client.beta.messages.create(
+                # Use streaming for long-running operations to avoid timeouts
+                full_content = ""
+                with self.anthropic_client.beta.messages.stream(
                     model=self.anthropic_model,
                     max_tokens=ANTHROPIC_MAX_TOKENS,
                     messages=messages,
@@ -46,17 +47,36 @@ class LLMManager:
                         "budget_tokens": ANTHROPIC_THINKING_BUDGET
                     },
                     betas=[ANTHROPIC_BETA_HEADER]
-                )
+                ) as stream:
+                    # Initialize to store thinking process
+                    thinking_text = ""
 
-                # Extract content from response
-                content = response.content[0].text if hasattr(response, 'content') and response.content else ""
+                    print("Streaming response from Claude...")
+                    for chunk in stream:
+                        # Handle content chunks
+                        if hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
+                            # Print progress indicator
+                            print(".", end="", flush=True)
+                            full_content += chunk.delta.text
 
-                # Log extended thinking if available
-                if hasattr(response, 'thinking') and response.thinking:
-                    print(f"\nExtended thinking process (excerpt):")
-                    thinking_excerpt = response.thinking[:1000] + "..." if len(response.thinking) > 1000 else response.thinking
-                    print(thinking_excerpt)
+                        # Handle thinking chunks
+                        if hasattr(chunk, 'thinking') and chunk.thinking:
+                            thinking_text += chunk.thinking
+                            print("T", end="", flush=True)  # 'T' indicates thinking updated
 
+                    print()  # New line after progress indicators
+
+                    # Log thinking process if available
+                    if thinking_text:
+                        print(f"\nExtended thinking process captured ({len(thinking_text)} chars)")
+                        thinking_excerpt = thinking_text[:1000] + "..." if len(thinking_text) > 1000 else thinking_text
+                        print(thinking_excerpt)
+
+                        # Save thinking for debugging if needed
+                        with open("claude_thinking_log.txt", "w") as f:
+                            f.write(thinking_text)
+
+                content = full_content
                 print(f"\nRaw Anthropic response length: {len(content)}")
                 print(f"Response preview: {content[:500]}...")  # Debug log first 500 chars
 
@@ -168,11 +188,17 @@ class LLMManager:
         """
 
         try:
-            # Use the anthropic model directly for scientific analysis with extended thinking
+            # Use streaming for Claude API call to avoid timeouts with extended thinking
+            # Format messages for Claude API
             messages = [{"role": "user", "content": prompt}]
 
             print(f"Sending specialized scientific analysis request to Claude with extended thinking")
-            response = self.anthropic_client.beta.messages.create(
+
+            # Use streaming to handle long-running requests
+            full_content = ""
+            thinking_text = ""
+
+            with self.anthropic_client.beta.messages.stream(
                 model=self.anthropic_model,
                 max_tokens=ANTHROPIC_MAX_TOKENS,
                 messages=messages,
@@ -181,17 +207,30 @@ class LLMManager:
                     "budget_tokens": ANTHROPIC_THINKING_BUDGET
                 },
                 betas=[ANTHROPIC_BETA_HEADER]
-            )
+            ) as stream:
+                print("Streaming scientific analysis from Claude...")
+                for chunk in stream:
+                    # Handle content chunks
+                    if hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
+                        print(".", end="", flush=True)  # Show progress
+                        full_content += chunk.delta.text
 
-            content = response.content[0].text if hasattr(response, 'content') and response.content else ""
-            print(f"Received scientific analysis response of length: {len(content)}")
+                    # Handle thinking chunks
+                    if hasattr(chunk, 'thinking') and chunk.thinking:
+                        thinking_text += chunk.thinking
+                        print("T", end="", flush=True)  # 'T' for thinking
 
-            # Log extended thinking if available
-            if hasattr(response, 'thinking') and response.thinking:
-                print(f"Extended thinking process available ({len(response.thinking)} characters)")
-                # Save thinking for debugging if needed
+                print()  # New line after progress indicators
+
+            # Log thinking process if available
+            if thinking_text:
+                print(f"Extended thinking process available ({len(thinking_text)} characters)")
+                # Save thinking for debugging
                 with open("claude_thinking_log.txt", "w") as f:
-                    f.write(response.thinking)
+                    f.write(thinking_text)
+
+            content = full_content
+            print(f"Received scientific analysis response of length: {len(content)}")
 
             # Extract JSON from the response
             try:

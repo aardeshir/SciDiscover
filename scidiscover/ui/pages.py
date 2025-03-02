@@ -70,17 +70,45 @@ def main_page():
 
     if analyze_clicked and query:
         st.session_state.current_query = query
-        with st.spinner("Performing deep scientific analysis with extended thinking..."):
-            try:
-                analysis = sci_agent.analyze_mechanism(
-                    query,
-                    novelty_score=novelty_score,
-                    include_established=include_established
-                )
-                st.session_state.analysis_results = analysis
-            except Exception as e:
-                st.error(f"Error in analysis: {str(e)}")
-                return
+
+        # Create a progress bar and status message
+        progress_bar = st.progress(0)
+        status_message = st.empty()
+
+        status_message.info("Initiating extended thinking analysis with Claude 3.7 Sonnet...")
+        progress_bar.progress(10)
+
+        try:
+            # Update status
+            status_message.info("Extracting scientific concepts and preparing analysis...")
+            progress_bar.progress(20)
+
+            # First status update
+            status_message.info("Performing deep scientific analysis with extended thinking (this may take a few minutes)...")
+            progress_bar.progress(40)
+
+            # Run the analysis
+            analysis = sci_agent.analyze_mechanism(
+                query,
+                novelty_score=novelty_score,
+                include_established=include_established
+            )
+
+            # Final status update
+            status_message.success("Analysis complete!")
+            progress_bar.progress(100)
+
+            # Store results and clear status displays
+            st.session_state.analysis_results = analysis
+            status_message.empty()
+            progress_bar.empty()
+
+        except Exception as e:
+            # Show error and clear progress displays
+            progress_bar.empty()
+            status_message.error(f"Error in analysis: {str(e)}")
+            st.error("The extended thinking analysis encountered an error. Please try again with a different query or check the logs for details.")
+            return
 
     # Display results if available
     if st.session_state.analysis_results:
