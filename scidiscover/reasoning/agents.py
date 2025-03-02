@@ -1,5 +1,6 @@
 """
 Specialized agents for scientific discovery and analysis
+Based on SciAgents architecture (Ghafarollahi & Buehler, 2024)
 """
 from typing import Dict, List, Optional
 from .llm_manager import LLMManager
@@ -29,8 +30,7 @@ class OntologistAgent:
             "developmental_context": ["list of developmental stages or conditions"]
         }}
         """
-        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
-        return response if isinstance(response, dict) else {}
+        return self.llm_manager.generate_response(prompt, "anthropic", "json")
 
 class ScientistAgent:
     """Generates and validates scientific hypotheses"""
@@ -66,8 +66,38 @@ class ScientistAgent:
             "evidence": ["supporting literature evidence"]
         }}
         """
-        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
-        return response if isinstance(response, dict) else {}
+        return self.llm_manager.generate_response(prompt, "anthropic", "json")
+
+class ExpanderAgent:
+    """Expands and refines research proposals"""
+    def __init__(self, llm_manager: LLMManager):
+        self.llm_manager = llm_manager
+
+    def expand_hypothesis(self, hypothesis: Dict) -> Dict:
+        prompt = f"""
+        Expand and refine this research hypothesis:
+        {json.dumps(hypothesis, indent=2)}
+
+        Consider:
+        1. Additional molecular pathways
+        2. Cross-talk between pathways
+        3. Cellular compartments involved
+        4. Systems-level effects
+        5. Potential therapeutic targets
+
+        Format as JSON with this structure:
+        {{
+            "expanded_mechanisms": {{
+                "additional_pathways": ["list of related pathways"],
+                "pathway_interactions": ["mechanistic interactions"],
+                "cellular_compartments": ["involved compartments"],
+                "system_effects": ["broader physiological impacts"]
+            }},
+            "therapeutic_implications": ["potential interventions"],
+            "research_priorities": ["key areas for investigation"]
+        }}
+        """
+        return self.llm_manager.generate_response(prompt, "anthropic", "json")
 
 class CriticAgent:
     """Reviews and validates scientific analyses"""
@@ -102,5 +132,4 @@ class CriticAgent:
             "confidence_score": 0.95  # 0-1 score
         }}
         """
-        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
-        return response if isinstance(response, dict) else {}
+        return self.llm_manager.generate_response(prompt, "anthropic", "json")
