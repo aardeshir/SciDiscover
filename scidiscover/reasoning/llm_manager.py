@@ -1,7 +1,7 @@
 import os
 from openai import OpenAI
 from anthropic import Anthropic
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 import json
 from scidiscover.config import OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_MODEL, ANTHROPIC_MODEL
 
@@ -10,7 +10,7 @@ class LLMManager:
         self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
         self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
-    def generate_response(self, prompt: str, model_preference: str = "openai", response_format: str = "text") -> str:
+    def generate_response(self, prompt: str, model_preference: str = "openai", response_format: str = "text") -> Union[str, Dict]:
         """
         Generate response using specified LLM
         """
@@ -43,7 +43,7 @@ class LLMManager:
                     max_tokens=4000,
                     messages=[
                         {
-                            "role": "system",
+                            "role": "assistant",
                             "content": system_prompt
                         },
                         {
@@ -52,13 +52,24 @@ class LLMManager:
                         }
                     ]
                 )
-                return response.content[0].text
 
-            return ""
+                # Properly access Anthropic response content
+                content = response.content[0].text if hasattr(response, 'content') else response.get('content', '')
+
+                # If JSON response is expected, attempt to parse it
+                if response_format == "json":
+                    try:
+                        return json.loads(content)
+                    except json.JSONDecodeError:
+                        print(f"Failed to parse JSON response: {content}")
+                        return {}
+                return content
+
+            return "" if response_format == "text" else {}
 
         except Exception as e:
             print(f"Error in LLM response generation: {e}")
-            return ""
+            return "" if response_format == "text" else {}
 
     def analyze_scientific_text(self, text: str) -> Dict[str, Any]:
         """
@@ -85,9 +96,11 @@ class LLMManager:
         """
 
         response = self.generate_response(prompt, model_preference="anthropic", response_format="json")
+        if isinstance(response, dict):
+            return response
 
         try:
-            return json.loads(response)
+            return json.loads(response) if isinstance(response, str) else {}
         except json.JSONDecodeError as e:
             print(f"Error parsing JSON response: {e}")
             print(f"Raw response: {response}")

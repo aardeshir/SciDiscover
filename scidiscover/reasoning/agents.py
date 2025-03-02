@@ -21,7 +21,7 @@ class OntologistAgent:
         3. Regulatory mechanisms
         4. Temporal and developmental contexts
 
-        Return as JSON with the following structure:
+        Format as JSON with this structure:
         {{
             "molecular_components": ["list of molecules, proteins, genes"],
             "cellular_processes": ["list of biological processes"],
@@ -29,7 +29,8 @@ class OntologistAgent:
             "developmental_context": ["list of developmental stages or conditions"]
         }}
         """
-        return self.llm_manager.generate_response(prompt, "anthropic", "json")
+        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
+        return response if isinstance(response, dict) else {}
 
 class ScientistAgent:
     """Generates and validates scientific hypotheses"""
@@ -42,15 +43,15 @@ class ScientistAgent:
         {json.dumps(concepts, indent=2)}
 
         Generate a detailed scientific hypothesis explaining the molecular mechanisms.
-        
+
         Consider:
         1. Specific signaling pathways
         2. Gene regulatory networks
         3. Temporal sequences
         4. Causal relationships
         5. Supporting evidence from literature
-        
-        Return as JSON with:
+
+        Format as JSON with this structure:
         {{
             "hypothesis": "Main hypothesis statement",
             "mechanisms": {{
@@ -65,7 +66,8 @@ class ScientistAgent:
             "evidence": ["supporting literature evidence"]
         }}
         """
-        return self.llm_manager.generate_response(prompt, "anthropic", "json")
+        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
+        return response if isinstance(response, dict) else {}
 
 class CriticAgent:
     """Reviews and validates scientific analyses"""
@@ -84,7 +86,7 @@ class CriticAgent:
         4. Potential gaps or limitations
         5. Suggested experimental validations
 
-        Return as JSON with:
+        Format as JSON with this structure:
         {{
             "evaluation": {{
                 "strengths": ["list of strong points"],
@@ -97,7 +99,8 @@ class CriticAgent:
                 "predictions": ["testable predictions"],
                 "controls": ["necessary controls"]
             }},
-            "confidence_score": float  # 0-1 score
+            "confidence_score": 0.95  # 0-1 score
         }}
         """
-        return self.llm_manager.generate_response(prompt, "anthropic", "json")
+        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
+        return response if isinstance(response, dict) else {}
