@@ -12,6 +12,26 @@ def main_page():
     sci_agent = SciAgent()
     pubtator = PubTatorClient()
 
+    # Add novelty controls
+    with st.sidebar:
+        st.header("Analysis Controls")
+
+        # Novelty slider
+        novelty_score = st.slider(
+            "Novelty Level",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            help="0: Well-established mechanisms, 1: Novel/recent discoveries"
+        )
+
+        # Include established mechanisms checkbox
+        include_established = st.checkbox(
+            "Include established mechanisms",
+            value=True,
+            help="Always include well-known pathways regardless of novelty setting"
+        )
+
     query = st.text_area(
         "Enter your scientific query:",
         height=100,
@@ -24,7 +44,11 @@ def main_page():
             return
 
         with st.spinner("Performing deep scientific analysis..."):
-            analysis = sci_agent.analyze_mechanism(query)
+            analysis = sci_agent.analyze_mechanism(
+                query,
+                novelty_score=novelty_score,
+                include_established=include_established
+            )
 
             if "error" in analysis:
                 st.error("Error in analysis. Please try again.")
@@ -35,7 +59,11 @@ def main_page():
 
             # Show confidence score
             confidence = analysis.get("confidence_score", 0)
-            st.metric("Analysis Confidence Score", f"{confidence:.2f}")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Analysis Confidence Score", f"{confidence:.2f}")
+            with col2:
+                st.metric("Novelty Level", f"{novelty_score:.2f}")
 
             # Display pathways
             st.subheader("Key Molecular Pathways")

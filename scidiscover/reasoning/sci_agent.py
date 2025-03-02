@@ -21,9 +21,13 @@ class SciAgent:
         self.critic = CriticAgent(self.llm_manager)
         self.kg_reasoner = KGReasoningAgent(self.llm_manager)
 
-    def analyze_mechanism(self, query: str) -> Dict:
+    def analyze_mechanism(self, query: str, novelty_score: float = 0.5, include_established: bool = True) -> Dict:
         """
         Perform deep scientific analysis using multi-agent approach
+        Args:
+            query: Scientific query to analyze
+            novelty_score: Target novelty level (0: established, 1: novel)
+            include_established: Whether to include well-known mechanisms
         """
         try:
             # Step 1: Ontological Analysis
@@ -40,14 +44,25 @@ class SciAgent:
                            "regulatory_mechanisms", "developmental_context"]:
                 concept_list.extend(concepts.get(category, []))
 
-            graph_analysis = self.kg_reasoner.analyze_mechanism_path(query, concept_list)
+            graph_analysis = self.kg_reasoner.analyze_mechanism_path(
+                query, 
+                concept_list,
+                novelty_score=novelty_score,
+                include_established=include_established
+            )
 
             # Step 3: Initial Hypothesis Generation
             print("Generating initial hypothesis...")
-            initial_hypothesis = self.scientist.generate_hypothesis({
-                **concepts,
-                "graph_evidence": graph_analysis["knowledge_graph"]
-            })
+            initial_hypothesis = self.scientist.generate_hypothesis(
+                {
+                    **concepts,
+                    "graph_evidence": graph_analysis["knowledge_graph"],
+                    "novelty_params": {
+                        "score": novelty_score,
+                        "include_established": include_established
+                    }
+                }
+            )
 
             if not initial_hypothesis or not isinstance(initial_hypothesis, dict):
                 return {
@@ -57,7 +72,13 @@ class SciAgent:
 
             # Step 4: Hypothesis Expansion
             print("Expanding hypothesis...")
-            expanded = self.expander.expand_hypothesis(initial_hypothesis)
+            expanded = self.expander.expand_hypothesis(
+                {
+                    **initial_hypothesis,
+                    "novelty_score": novelty_score,
+                    "include_established": include_established
+                }
+            )
 
             if not expanded or not isinstance(expanded, dict):
                 return {
@@ -67,17 +88,24 @@ class SciAgent:
 
             # Step 5: Graph-based Validation
             print("Validating with knowledge graph...")
-            graph_validation = self.kg_reasoner.validate_hypothesis({
-                **initial_hypothesis,
-                "concept_paths": graph_analysis["concept_paths"]
-            })
+            graph_validation = self.kg_reasoner.validate_hypothesis(
+                {
+                    **initial_hypothesis,
+                    "concept_paths": graph_analysis["concept_paths"],
+                    "novelty_score": novelty_score
+                }
+            )
 
             # Step 6: Critical Review
             print("Performing critical review...")
             full_hypothesis = {
                 **initial_hypothesis,
                 "expanded_analysis": expanded,
-                "graph_validation": graph_validation
+                "graph_validation": graph_validation,
+                "novelty_params": {
+                    "score": novelty_score,
+                    "include_established": include_established
+                }
             }
             review = self.critic.review_hypothesis(full_hypothesis)
 
@@ -103,7 +131,8 @@ class SciAgent:
                     "research_priorities": expanded["research_priorities"]
                 },
                 "validation": review["evaluation"],
-                "confidence_score": review["confidence_score"]
+                "confidence_score": review["confidence_score"],
+                "novelty_score": novelty_score
             }
 
         except Exception as e:
