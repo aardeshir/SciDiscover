@@ -7,14 +7,16 @@ def main():
     st.set_page_config(
         page_title="SciDiscover",
         page_icon="🧬",
-        layout="wide"
+        layout="wide",
+        initial_sidebar_state="expanded"
     )
-    
+
     # Check for required environment variables
-    if not os.getenv("OPENAI_API_KEY") or not os.getenv("ANTHROPIC_API_KEY"):
-        st.error("Please set the required API keys in environment variables.")
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        st.error("Please set the ANTHROPIC_API_KEY environment variable to use Claude-3 for analysis.")
+        st.info("This application requires the Anthropic Claude API for scientific analysis.")
         return
-    
+
     # Run the main application
     main_page()
 

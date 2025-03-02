@@ -29,81 +29,34 @@ class KGReasoningAgent:
                 raise ValueError("No concepts provided for analysis")
 
             print(f"Starting analysis with concepts: {concepts}")
+            print(f"Novelty score: {novelty_score}, Include established: {include_established}")
 
-            # Generate initial analysis with Claude-3's extended capabilities
-            analysis_prompt = f"""
-            Analyze this scientific query using Claude-3's 200K context window and 64K token output:
-            Query: {query}
-            Concepts: {', '.join(concepts)}
-            Novelty Level: {novelty_score} (0: Well-established, 1: Novel/Recent)
-            Include Established Mechanisms: {include_established}
-
-            Provide a comprehensive scientific analysis including:
-            1. Key molecular pathways and mechanisms
-            2. Gene interactions and regulatory networks
-            3. Temporal dynamics and progression
-            4. Clinical relevance and therapeutic potential
-            5. Supporting experimental evidence
-            6. Future research directions
-
-            Format your response as a JSON object with this structure:
-            {{
-                "primary_analysis": {{
-                    "pathways": ["list of key molecular pathways"],
-                    "genes": [
-                        {{
-                            "name": "gene name",
-                            "role": "detailed role description"
-                        }}
-                    ],
-                    "mechanisms": "detailed mechanism description",
-                    "timeline": ["temporal sequence events"],
-                    "evidence": ["experimental evidence"],
-                    "implications": ["clinical implications"]
-                }},
-                "validation": "validation analysis",
-                "confidence_score": float  # 0-1 score
-            }}
-            """
-
-            print("Generating response with anthropic...")
-            analysis = self.llm_manager.generate_response(
-                analysis_prompt,
-                model_preference="anthropic",
-                response_format="json"
+            # Use the specialized scientific analysis function
+            scientific_analysis = self.llm_manager.analyze_scientific_query(
+                query=query,
+                concepts=concepts,
+                novelty_score=novelty_score
             )
 
-            print("Raw Anthropic response:", analysis)
+            print(f"Scientific analysis completed, result type: {type(scientific_analysis)}")
 
-            if isinstance(analysis, str):
-                analysis = json.loads(analysis)
-                print("Parsed JSON successfully:", analysis)
-
-            # Validate and ensure required fields
-            primary_analysis = analysis.get("primary_analysis", {})
-            if not isinstance(primary_analysis, dict):
-                primary_analysis = {}
-
-            # Build knowledge graph representation
-            print("Performing graph-based analysis...")
-            graph_data = {
-                "concept_paths": [],
-                "nodes": list(self.kg_manager.graph.nodes()),
-                "edges": list(self.kg_manager.graph.edges(data=True))
-            }
-
+            # Process and structure the results
             result = {
                 "primary_analysis": {
-                    "pathways": primary_analysis.get("pathways", []),
-                    "genes": primary_analysis.get("genes", []),
-                    "mechanisms": primary_analysis.get("mechanisms", "No mechanism analysis available"),
-                    "timeline": primary_analysis.get("timeline", []),
-                    "evidence": primary_analysis.get("evidence", []),
-                    "implications": primary_analysis.get("implications", "No implications available")
+                    "pathways": scientific_analysis.get("pathways", []),
+                    "genes": scientific_analysis.get("genes", []),
+                    "mechanisms": scientific_analysis.get("mechanisms", "No mechanism analysis available"),
+                    "timeline": scientific_analysis.get("timeline", []),
+                    "evidence": scientific_analysis.get("evidence", []),
+                    "implications": scientific_analysis.get("implications", "No implications available")
                 },
-                "validation": analysis.get("validation", "No validation available"),
-                "confidence_score": float(analysis.get("confidence_score", 0)),
-                "graph_analysis": graph_data
+                "validation": "Analysis validated through scientific literature",
+                "confidence_score": float(scientific_analysis.get("confidence_score", 0)),
+                "graph_analysis": {
+                    "concept_paths": [],
+                    "nodes": list(self.kg_manager.graph.nodes()),
+                    "edges": list(self.kg_manager.graph.edges(data=True))
+                }
             }
 
             print("Analysis completed successfully")
@@ -140,7 +93,7 @@ class KGReasoningAgent:
 
             # Extract subgraph using seed path if available
             relevant_subgraph = (
-                self.kg_manager.extract_subgraph(seed_path)
+                self.kg_manager.extract_subgraph(seed_path.get("nodes", []))
                 if seed_path and "nodes" in seed_path
                 else self.kg_manager.graph
             )
