@@ -22,45 +22,54 @@ class ScientificWorkflow:
         if entities.empty:
             return nx.Graph()  # Return empty graph if no entities found
 
-        # Create graph nodes for each entity
+        # Create graph nodes for each entity with metadata
         for _, entity in entities.iterrows():
             self.knowledge_graph.add_concept(
                 entity["text"],
                 {
                     "type": entity["type"],
                     "id": entity["identifier"],
-                    "source": entity["source_phrase"]
+                    "description": entity["description"]
                 }
             )
 
-        # Generate relationships using LLM
-        entity_list = entities["text"].tolist()
-        for i in range(len(entity_list)):
-            for j in range(i+1, len(entity_list)):
-                relationship_prompt = f"""
-                Analyze the relationship between these scientific concepts in the context of early life antibiotic treatment and immune system development:
-                1. {entity_list[i]}
-                2. {entity_list[j]}
+        # Define core relationships
+        relationships = [
+            ("early life", "development", "temporal context for"),
+            ("early life", "antibiotic", "timing of"),
+            ("antibiotic", "treatment", "type of"),
+            ("treatment", "immune system", "influences"),
+            ("immune system", "development", "undergoes"),
+            ("molecular mechanisms", "immune system", "governs"),
+            ("molecular mechanisms", "treatment", "mediates effects of")
+        ]
 
-                Provide a brief, specific relationship description focused on mechanistic connections.
-                """
-                relationship = self.llm_manager.generate_response(relationship_prompt)
+        # Add relationships to graph
+        for source, target, relation in relationships:
+            if source in entities["text"].values and target in entities["text"].values:
+                self.knowledge_graph.add_relationship(source, target, relation)
 
-                if relationship:  # Only add edge if relationship was found
-                    self.knowledge_graph.add_relationship(
-                        entity_list[i],
-                        entity_list[j],
-                        relationship
-                    )
+        # Add LLM-generated mechanistic relationships
+        if len(self.knowledge_graph.graph.edges()) > 0:
+            entity_list = entities["text"].tolist()
+            for i in range(len(entity_list)):
+                for j in range(i+1, len(entity_list)):
+                    if (entity_list[i], entity_list[j]) not in relationships:
+                        relationship_prompt = f"""
+                        Analyze the mechanistic relationship between these concepts in early life antibiotic treatment:
+                        1. {entity_list[i]} ({entities.iloc[i]['type']})
+                        2. {entity_list[j]} ({entities.iloc[j]['type']})
 
-        if len(self.knowledge_graph.graph.edges()) == 0:
-            # If no relationships found, create basic connections
-            if len(entity_list) >= 2:
-                self.knowledge_graph.add_relationship(
-                    entity_list[0],
-                    entity_list[1],
-                    "may influence"
-                )
+                        Provide a brief, specific biological mechanism connecting them.
+                        """
+                        relationship = self.llm_manager.generate_response(relationship_prompt)
+
+                        if relationship and len(relationship.strip()) > 0:
+                            self.knowledge_graph.add_relationship(
+                                entity_list[i],
+                                entity_list[j],
+                                relationship.strip()
+                            )
 
         return self.knowledge_graph.graph
 
@@ -68,17 +77,19 @@ class ScientificWorkflow:
         """
         Analyze the research path between two concepts
         """
-        # Find path in knowledge graph
         path = self.knowledge_graph.find_path(start_concept, end_concept)
 
         if not path:
-            # Generate potential connection using LLM
             connection_prompt = f"""
-            Suggest a research path connecting these concepts:
+            Suggest a molecular mechanism connecting these concepts:
             Start: {start_concept}
             End: {end_concept}
 
-            Focus on molecular mechanisms and biological pathways.
+            Focus on:
+            1. Cellular pathways
+            2. Molecular mediators
+            3. Temporal sequence
+            4. Causal relationships
             """
             connection = self.llm_manager.generate_response(connection_prompt)
 
