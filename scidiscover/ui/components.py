@@ -167,7 +167,35 @@ def render_collaborative_hypothesis(gamification_manager: GamificationManager, h
                 novelty_score=novelty_score,
                 references=[ref.strip() for ref in references if ref.strip()]
             )
+
+            # Show detailed point breakdown
             st.success(f"Contribution added! Earned {contribution_obj.points} points.")
+            with st.expander("View Point Breakdown"):
+                st.markdown("""
+                **Points Breakdown:**
+                - Evidence Strength: {:.0f} points
+                - Novelty Score: {:.0f} points
+                - References: {:.0f} points
+                """.format(
+                    evidence_score * 40,  # Max 40 points for evidence
+                    novelty_score * 30,   # Max 30 points for novelty
+                    min(len(references) * 5, 20)  # Max 20 points for references
+                ))
+
+                # Show progress to next level
+                achievements = gamification_manager.get_user_achievements(
+                    st.session_state.get('user_id', 'anonymous')
+                )
+                st.markdown(f"**Current Level:** {achievements['expertise_level']}")
+
+                # Calculate points needed for next level
+                current_score = achievements['total_score']
+                next_level_threshold = next((
+                    threshold for threshold in [100, 500, 1000, 5000] 
+                    if threshold > current_score
+                ), 5000)
+
+                st.markdown(f"**Points needed for next level:** {next_level_threshold - current_score}")
 
 def render_user_achievements(gamification_manager: GamificationManager):
     """Render user achievements and stats"""
@@ -179,4 +207,20 @@ def render_user_achievements(gamification_manager: GamificationManager):
     st.sidebar.metric("Total Score", achievements["total_score"])
     st.sidebar.metric("Contributions", achievements["contributions"])
     st.sidebar.metric("Top Contribution", achievements["top_contribution"])
-    st.sidebar.markdown(f"**Level**: {achievements['expertise_level']}")
+
+    # Enhanced level display
+    level = achievements['expertise_level']
+    st.sidebar.markdown(f"""
+    ### Research Level
+    **Current Level:** {level}
+    """)
+
+    # Show level thresholds
+    if level != "Distinguished Researcher":
+        next_level = {
+            "Research Assistant": "Postdoc Researcher (100 points)",
+            "Postdoc Researcher": "Senior Scientist (500 points)",
+            "Senior Scientist": "Principal Investigator (1000 points)",
+            "Principal Investigator": "Distinguished Researcher (5000 points)"
+        }[level]
+        st.sidebar.markdown(f"**Next Level:** {next_level}")
