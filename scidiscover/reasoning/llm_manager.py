@@ -14,6 +14,7 @@ class LLMManager:
         """Generate response using specified LLM"""
         try:
             print(f"\nGenerating response with {model_preference}...")
+            print(f"Using model: {ANTHROPIC_MODEL if model_preference == 'anthropic' else OPENAI_MODEL}")
             print(f"Prompt: {prompt[:200]}...")  # Print first 200 chars of prompt
 
             if model_preference == "anthropic":
@@ -24,6 +25,7 @@ class LLMManager:
                     }
                 ]
 
+                print(f"Sending request to Claude with model: {ANTHROPIC_MODEL}")
                 response = self.anthropic_client.messages.create(
                     model=ANTHROPIC_MODEL,
                     max_tokens=4000,
@@ -61,6 +63,7 @@ class LLMManager:
                 return content
 
             elif model_preference == "openai":
+                print(f"Sending request to OpenAI with model: {OPENAI_MODEL}")
                 messages = [
                     {
                         "role": "system",
