@@ -1,6 +1,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 import networkx as nx
+from ..collaboration.gamification import GamificationManager
 
 def render_header():
     st.title("SciDiscover")
@@ -22,10 +23,10 @@ def render_concept_network(knowledge_graph):
         st.warning("No concepts to display in the network.")
         return
 
-    # Create a spring layout with more space between nodes
+    # Create a spring layout
     pos = nx.spring_layout(graph, k=2, iterations=50)
 
-    # Create edges with relationship labels
+    # Create edges
     edge_x = []
     edge_y = []
     edge_text = []
@@ -45,7 +46,7 @@ def render_concept_network(knowledge_graph):
         mode='lines'
     )
 
-    # Create nodes with metadata
+    # Create nodes
     node_x = []
     node_y = []
     node_text = []
@@ -65,13 +66,11 @@ def render_concept_network(knowledge_graph):
         node_x.append(x)
         node_y.append(y)
 
-        # Create hover text with node metadata
         node_type = node[1].get('type', 'concept')
         description = node[1].get('description', '')
         hover_text = f"{node[0]}<br>Type: {node_type}<br>{description}"
         node_text.append(hover_text)
 
-        # Assign color based on node type
         node_color.append(color_map.get(node_type, '#7f7f7f'))
 
     node_trace = go.Scatter(
@@ -89,7 +88,7 @@ def render_concept_network(knowledge_graph):
         )
     )
 
-    # Create the figure with custom layout
+    # Create figure
     fig = go.Figure(
         data=[edge_trace, node_trace],
         layout=go.Layout(
@@ -107,7 +106,7 @@ def render_concept_network(knowledge_graph):
 
     st.plotly_chart(fig)
 
-    # Add legend for node types
+    # Add legend
     st.markdown("### Concept Types")
     cols = st.columns(3)
     for i, (type_name, color) in enumerate(color_map.items()):
@@ -126,3 +125,58 @@ def render_entity_table(entities):
         st.table(entities)
     else:
         st.warning("No entities were identified.")
+
+def render_collaborative_hypothesis(gamification_manager: GamificationManager, hypothesis_id: str):
+    """Render collaborative hypothesis building interface"""
+    st.subheader("Collaborative Hypothesis Building")
+
+    # Add contribution
+    contribution = st.text_area(
+        "Add to this hypothesis:",
+        help="Suggest refinements, additional mechanisms, or evidence"
+    )
+
+    # Evidence and novelty scoring
+    col1, col2 = st.columns(2)
+    with col1:
+        evidence_score = st.slider(
+            "Evidence Strength",
+            0.0, 1.0, 0.5,
+            help="Rate the strength of supporting evidence"
+        )
+    with col2:
+        novelty_score = st.slider(
+            "Novelty Score",
+            0.0, 1.0, 0.5,
+            help="Rate how novel this contribution is"
+        )
+
+    # References
+    references = st.text_area(
+        "Supporting References",
+        help="Enter PubMed IDs or DOIs, one per line"
+    ).split('\n')
+
+    if st.button("Submit Contribution"):
+        if contribution and references:
+            contribution_obj = gamification_manager.add_contribution(
+                user_id=st.session_state.get('user_id', 'anonymous'),
+                hypothesis_id=hypothesis_id,
+                content=contribution,
+                evidence_score=evidence_score,
+                novelty_score=novelty_score,
+                references=[ref.strip() for ref in references if ref.strip()]
+            )
+            st.success(f"Contribution added! Earned {contribution_obj.points} points.")
+
+def render_user_achievements(gamification_manager: GamificationManager):
+    """Render user achievements and stats"""
+    st.sidebar.subheader("Your Research Impact")
+
+    user_id = st.session_state.get('user_id', 'anonymous')
+    achievements = gamification_manager.get_user_achievements(user_id)
+
+    st.sidebar.metric("Total Score", achievements["total_score"])
+    st.sidebar.metric("Contributions", achievements["contributions"])
+    st.sidebar.metric("Top Contribution", achievements["top_contribution"])
+    st.sidebar.markdown(f"**Level**: {achievements['expertise_level']}")

@@ -1,6 +1,12 @@
 import streamlit as st
 from ..reasoning.sci_agent import SciAgent
 from ..knowledge.pubtator import PubTatorClient
+from ..collaboration.gamification import GamificationManager
+from .components import (
+    render_collaborative_hypothesis,
+    render_user_achievements,
+    render_concept_network
+)
 
 def main_page():
     st.title("SciDiscover")
@@ -9,8 +15,10 @@ def main_page():
     Powered by advanced language models and scientific knowledge bases.
     """)
 
+    # Initialize managers
     sci_agent = SciAgent()
     pubtator = PubTatorClient()
+    gamification = GamificationManager()
 
     # Add novelty controls
     with st.sidebar:
@@ -31,6 +39,9 @@ def main_page():
             value=True,
             help="Always include well-known pathways regardless of novelty setting"
         )
+
+        # Render user achievements
+        render_user_achievements(gamification)
 
     query = st.text_area(
         "Enter your scientific query:",
@@ -96,3 +107,16 @@ def main_page():
             # Show validation insights
             with st.expander("View Validation Analysis"):
                 st.markdown(analysis["validation"])
+
+            # Add collaborative hypothesis building
+            st.markdown("---")
+            render_collaborative_hypothesis(
+                gamification,
+                hypothesis_id=query[:50]  # Use truncated query as hypothesis ID
+            )
+
+            # Display concept network
+            if "graph_analysis" in analysis:
+                st.markdown("---")
+                st.header("Knowledge Graph Visualization")
+                render_concept_network(analysis["graph_analysis"].get("concept_paths"))
