@@ -139,7 +139,10 @@ class ExpanderAgent:
             "research_priorities": ["key areas for investigation"]
         }}
         """
-        return self.llm_manager.generate_response(prompt, "anthropic", "json")
+        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
+        if isinstance(response, dict):
+            return response
+        return {}
 
 class CriticAgent:
     """Reviews and validates scientific analyses"""
@@ -174,4 +177,7 @@ class CriticAgent:
             "confidence_score": 0.95  # 0-1 score
         }}
         """
-        return self.llm_manager.generate_response(prompt, "anthropic", "json")
+        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
+        if isinstance(response, dict):
+            return response
+        return {}

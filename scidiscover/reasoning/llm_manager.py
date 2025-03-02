@@ -16,12 +16,7 @@ class LLMManager:
         """Generate response using specified LLM"""
         try:
             if model_preference == "anthropic":
-                # Set up system message
-                system_message = {
-                    "role": "system",
-                    "content": "You are a scientific analysis expert specializing in molecular biology and biochemistry. Provide detailed, accurate analysis of scientific queries."
-                }
-
+                # Set up message content
                 user_message = {
                     "role": "user",
                     "content": prompt
@@ -38,10 +33,12 @@ class LLMManager:
                 # Make API request with extended thinking
                 try:
                     print(f"Using Claude model: {ANTHROPIC_MODEL} with extended thinking: {enable_thinking}")
+                    # Note: system parameter is passed at the top level, not in messages
                     response = self.anthropic_client.messages.create(
                         model=ANTHROPIC_MODEL,
                         max_tokens=8000,
-                        messages=[system_message, user_message],
+                        system="You are a scientific analysis expert specializing in molecular biology and biochemistry. Provide detailed, accurate analysis of scientific queries.",
+                        messages=[user_message],
                         temperature=0.1,
                         thinking=thinking_config
                     )
