@@ -18,6 +18,8 @@ def main_page():
         st.session_state.novelty_score = 0.5
     if 'include_established' not in st.session_state:
         st.session_state.include_established = True
+    if 'show_thinking' not in st.session_state:
+        st.session_state.show_thinking = True
 
     # Initialize managers
     sci_agent = SciAgent()
@@ -26,6 +28,14 @@ def main_page():
     # Add novelty controls in sidebar
     with st.sidebar:
         st.header("Analysis Controls")
+
+        # Enable thinking process toggle
+        show_thinking = st.checkbox(
+            "Show thinking process",
+            value=st.session_state.show_thinking,
+            help="Display Claude's reasoning steps during analysis"
+        )
+        st.session_state.show_thinking = show_thinking
 
         # Novelty slider
         novelty_score = st.slider(
@@ -62,7 +72,8 @@ def main_page():
                 analysis = sci_agent.analyze_mechanism(
                     query,
                     novelty_score=novelty_score,
-                    include_established=include_established
+                    include_established=include_established,
+                    enable_thinking=show_thinking
                 )
                 st.session_state.analysis_results = analysis
             except Exception as e:
@@ -76,6 +87,12 @@ def main_page():
         if "error" in analysis:
             st.error("Error in analysis. Please try again.")
             return
+
+        # Show thinking process if enabled
+        if show_thinking and "thinking_process" in analysis:
+            with st.expander("View Analysis Thinking Process", expanded=True):
+                st.markdown("### Claude's Reasoning Process")
+                st.markdown(analysis["thinking_process"])
 
         # Display Primary Analysis
         st.header("Molecular Mechanism Analysis")

@@ -10,26 +10,46 @@ class LLMManager:
         self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
         self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
-    def generate_response(self, prompt: str, model_preference: str = "openai", response_format: str = "text") -> Union[str, Dict]:
-        """Generate response using specified LLM"""
+    def generate_response(self, prompt: str, model_preference: str = "openai", 
+                         response_format: str = "text", enable_thinking: bool = True) -> Union[str, Dict]:
+        """Generate response using specified LLM with extended thinking capabilities"""
         try:
             print(f"\nGenerating response with {model_preference}...")
             print(f"Using model: {ANTHROPIC_MODEL if model_preference == 'anthropic' else OPENAI_MODEL}")
             print(f"Prompt: {prompt[:200]}...")  # Print first 200 chars of prompt
 
             if model_preference == "anthropic":
+                thinking_prompt = """
+                Use extended thinking mode to analyze this query thoroughly.
+                Show your reasoning process before providing the final response.
+
+                Consider:
+                1. Key concepts and their relationships
+                2. Supporting evidence and contradictions
+                3. Alternative hypotheses
+                4. Methodological considerations
+                5. Practical implications
+
+                Structure your response to include both:
+                1. Your thinking process
+                2. The final formatted answer
+
+                Original Query:
+                """ + prompt
+
                 messages = [
                     {
                         "role": "user",
-                        "content": prompt
+                        "content": thinking_prompt if enable_thinking else prompt
                     }
                 ]
 
                 print(f"Sending request to Claude with model: {ANTHROPIC_MODEL}")
                 response = self.anthropic_client.messages.create(
                     model=ANTHROPIC_MODEL,
-                    max_tokens=4000,
-                    messages=messages
+                    max_tokens=64000 if enable_thinking else 4000,
+                    messages=messages,
+                    temperature=0.3
                 )
 
                 # Extract content from response
@@ -41,21 +61,29 @@ class LLMManager:
 
                 print(f"\nRaw Anthropic response: {content[:200]}...")  # Debug log
 
-                # Clean up response for JSON parsing
+                # Process response based on format
                 if response_format == "json":
                     try:
-                        # Remove markdown code blocks if present
-                        if content.startswith("```json"):
-                            content = content.split("```json")[1]
-                        if content.startswith("```"):
-                            content = content.split("```")[1]
-                        if content.endswith("```"):
-                            content = content.rsplit("```", 1)[0]
+                        # First, try to extract just the JSON part
+                        if "```json" in content:
+                            json_content = content.split("```json")[1].split("```")[0]
+                        elif "Here's my final analysis in JSON format:" in content:
+                            json_content = content.split("Here's my final analysis in JSON format:")[1]
+                        else:
+                            json_content = content
 
-                        content = content.strip()
-                        json_response = json.loads(content)
-                        print(f"Parsed JSON successfully: {json.dumps(json_response, indent=2)[:200]}...")
-                        return json_response
+                        # Clean up and parse JSON
+                        json_content = json_content.strip()
+                        result = json.loads(json_content)
+
+                        # Add thinking process if available
+                        if enable_thinking and "THINKING PROCESS:" in content:
+                            thinking = content.split("THINKING PROCESS:")[1].split("FINAL ANALYSIS:")[0].strip()
+                            if isinstance(result, dict):
+                                result["thinking_process"] = thinking
+
+                        print(f"Parsed JSON successfully: {json.dumps(result, indent=2)[:200]}...")
+                        return result
                     except json.JSONDecodeError as e:
                         print(f"JSON parsing error: {e}")
                         print(f"Failed content: {content}")
@@ -63,6 +91,7 @@ class LLMManager:
                 return content
 
             elif model_preference == "openai":
+                # OpenAI implementation remains unchanged
                 print(f"Sending request to OpenAI with model: {OPENAI_MODEL}")
                 messages = [
                     {
@@ -79,7 +108,7 @@ class LLMManager:
                     model=OPENAI_MODEL,
                     messages=messages,
                     response_format={"type": "json_object"} if response_format == "json" else None,
-                    temperature=0.3  # Lower temperature for more precise scientific responses
+                    temperature=0.3
                 )
 
                 content = response.choices[0].message.content
@@ -98,20 +127,27 @@ class LLMManager:
             return {} if response_format == "json" else ""
 
     def analyze_scientific_text(self, text: str) -> Dict[str, Any]:
-        """
-        Analyze scientific text for key concepts and relationships
-        """
+        """Analyze scientific text with extended thinking capabilities"""
         prompt = f"""
-        Analyze the following scientific text and extract:
+        Use extended thinking mode to analyze the following scientific text and extract:
         1. Key concepts
         2. Relationships between concepts
         3. Potential hypotheses
         4. Research implications
 
+        THINKING PROCESS:
+        First, I will:
+        1. Identify core scientific concepts
+        2. Map relationships and dependencies
+        3. Consider alternative interpretations
+        4. Evaluate evidence strength
+        5. Assess practical applications
+
         Text: {text}
 
         Return a JSON object with the following structure:
         {{
+            "thinking_process": "detailed analysis steps",
             "concepts": ["list of key concepts"],
             "relationships": [
                 {{"source": "concept1", "target": "concept2", "relationship": "description"}}
@@ -121,7 +157,8 @@ class LLMManager:
         }}
         """
 
-        response = self.generate_response(prompt, model_preference="anthropic", response_format="json")
+        response = self.generate_response(prompt, model_preference="anthropic", 
+                                       response_format="json", enable_thinking=True)
         if isinstance(response, dict):
             return response
 
