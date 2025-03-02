@@ -16,9 +16,21 @@ DB_PATH = "scidiscover.db"
 OPENAI_MODEL = "o3-mini-2025-01-31"
 # the newest Anthropic model is "claude-3-7-sonnet-20250219" with extended thinking capabilities
 ANTHROPIC_MODEL = "claude-3-7-sonnet-20250219"
-ANTHROPIC_MAX_TOKENS = 128000
-ANTHROPIC_THINKING_BUDGET = 32000
+
+# Anthropic API configurations
 ANTHROPIC_BETA_HEADER = "output-128k-2025-02-19"
+
+# Extended thinking configurations - maximum
+ANTHROPIC_MAX_TOKENS_HIGH = 80000
+ANTHROPIC_THINKING_BUDGET_HIGH = 64000
+
+# Extended thinking configurations - balanced
+ANTHROPIC_MAX_TOKENS_LOW = 64000
+ANTHROPIC_THINKING_BUDGET_LOW = 32000
+
+# Default to high configuration
+ANTHROPIC_MAX_TOKENS = ANTHROPIC_MAX_TOKENS_HIGH
+ANTHROPIC_THINKING_BUDGET = ANTHROPIC_THINKING_BUDGET_HIGH
 
 # Scientific Analysis Configuration
 PUBMED_BATCH_SIZE = 100

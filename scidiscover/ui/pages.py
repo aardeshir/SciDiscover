@@ -22,10 +22,8 @@ def main_page():
         st.session_state.use_debate = False
     if 'debate_history' not in st.session_state:
         st.session_state.debate_history = None
-
-    # Initialize managers
-    sci_agent = SciAgent()
-    pubtator = PubTatorClient()
+    if 'high_demand_mode' not in st.session_state:
+        st.session_state.high_demand_mode = True
 
     # Add controls in sidebar
     with st.sidebar:
@@ -74,6 +72,33 @@ def main_page():
             )
             st.session_state.include_established = include_established
 
+        # Add thinking mode selection
+        st.markdown("---")
+        st.subheader("Extended Thinking Configuration")
+        thinking_mode = st.radio(
+            "Claude's Thinking Mode",
+            ["High-Demand", "Low-Demand"],
+            index=0 if st.session_state.high_demand_mode else 1,
+            help="High-Demand: Deeper analysis with 64K thinking tokens. Low-Demand: More efficient with 32K thinking tokens."
+        )
+        st.session_state.high_demand_mode = (thinking_mode == "High-Demand")
+
+        # Display current configuration based on selected mode
+        if st.session_state.high_demand_mode:
+            st.info("""
+            **High-Demand Mode**
+            - 64K thinking tokens
+            - 80K max tokens output
+            - Best for complex queries
+            """)
+        else:
+            st.info("""
+            **Low-Demand Mode**
+            - 32K thinking tokens
+            - 64K max tokens output
+            - Faster for simpler queries
+            """)
+
         # Add information about extended thinking capabilities
         st.markdown("---")
         with st.expander("🧠 Extended Thinking", expanded=True):
@@ -81,11 +106,18 @@ def main_page():
             **Enhanced with Claude 3.7 Sonnet's Extended Thinking**
 
             Analysis now powered by:
-            - 128K token output capacity
-            - 32K token thinking budget
+            - {output_tokens}K token output capacity
+            - {thinking_tokens}K token thinking budget
             - Advanced multi-step reasoning
             - Deeper scientific analysis
-            """)
+            """.format(
+                output_tokens="80" if st.session_state.high_demand_mode else "64",
+                thinking_tokens="64" if st.session_state.high_demand_mode else "32"
+            ))
+
+    # Initialize managers with user's thinking mode preference
+    sci_agent = SciAgent(high_demand_mode=st.session_state.high_demand_mode)
+    pubtator = PubTatorClient()
 
     # Main query input
     query = st.text_area(
@@ -277,4 +309,7 @@ def main_page():
 
         # Add citation for extended thinking capabilities
         st.markdown("---")
-        st.caption("Analysis powered by Claude 3.7 Sonnet's extended thinking capabilities (128K output tokens, 32K thinking tokens)")
+        st.caption("Analysis powered by Claude 3.7 Sonnet's extended thinking capabilities ({0}K output tokens, {1}K thinking tokens)".format(
+            "80" if st.session_state.high_demand_mode else "64",
+            "64" if st.session_state.high_demand_mode else "32"
+        ))

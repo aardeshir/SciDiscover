@@ -5,18 +5,35 @@ from typing import Dict, Any, Optional, Union
 import json
 from scidiscover.config import (
     OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_MODEL, 
-    ANTHROPIC_MODEL, ANTHROPIC_MAX_TOKENS, 
-    ANTHROPIC_THINKING_BUDGET, ANTHROPIC_BETA_HEADER
+    ANTHROPIC_MODEL, ANTHROPIC_MAX_TOKENS_HIGH, ANTHROPIC_MAX_TOKENS_LOW,
+    ANTHROPIC_THINKING_BUDGET_HIGH, ANTHROPIC_THINKING_BUDGET_LOW, ANTHROPIC_BETA_HEADER
 )
 
 class LLMManager:
-    def __init__(self):
+    def __init__(self, high_demand_mode=True):
         self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
         self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
         # The newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 19, 2025
         # This model supports extended thinking capabilities
         self.anthropic_model = ANTHROPIC_MODEL
+
+        # Set token limits based on the selected mode
+        self.high_demand_mode = high_demand_mode
+        self.set_thinking_mode(high_demand_mode)
+
         print(f"Initialized LLM manager with Anthropic model: {self.anthropic_model}")
+        print(f"Thinking mode: {'High-Demand' if high_demand_mode else 'Low-Demand'}")
+        print(f"Max tokens: {self.max_tokens}, Thinking budget: {self.thinking_budget}")
+
+    def set_thinking_mode(self, high_demand=True):
+        """Set the thinking mode for extended thinking capabilities"""
+        self.high_demand_mode = high_demand
+        if high_demand:
+            self.max_tokens = ANTHROPIC_MAX_TOKENS_HIGH
+            self.thinking_budget = ANTHROPIC_THINKING_BUDGET_HIGH
+        else:
+            self.max_tokens = ANTHROPIC_MAX_TOKENS_LOW
+            self.thinking_budget = ANTHROPIC_THINKING_BUDGET_LOW
 
     def generate_response(self, prompt: str, model_preference: str = "anthropic", response_format: str = "text") -> Union[str, Dict]:
         """Generate response using specified LLM"""
@@ -40,11 +57,11 @@ class LLMManager:
                 full_content = ""
                 with self.anthropic_client.beta.messages.stream(
                     model=self.anthropic_model,
-                    max_tokens=ANTHROPIC_MAX_TOKENS,
+                    max_tokens=self.max_tokens,
                     messages=messages,
                     thinking={
                         "type": "enabled",
-                        "budget_tokens": ANTHROPIC_THINKING_BUDGET
+                        "budget_tokens": self.thinking_budget
                     },
                     betas=[ANTHROPIC_BETA_HEADER]
                 ) as stream:
@@ -148,6 +165,8 @@ class LLMManager:
         Scientific analysis specialized function for more reliable Claude responses
         """
         print(f"Analyzing scientific query with {len(concepts)} concepts and novelty score {novelty_score}")
+        print(f"Using thinking mode: {'High-Demand' if self.high_demand_mode else 'Low-Demand'}")
+        print(f"Max tokens: {self.max_tokens}, Thinking budget: {self.thinking_budget}")
 
         # Create a structured prompt for scientific analysis with extended thinking
         prompt = f"""
@@ -157,7 +176,7 @@ class LLMManager:
         Relevant concepts: {', '.join(concepts)}
         Novelty preference: {novelty_score} (0: established knowledge, 1: cutting-edge research)
 
-        Take advantage of your extended thinking capabilities (32,000 tokens) to explore:
+        Take advantage of your extended thinking capabilities ({self.thinking_budget} tokens) to explore:
         1. Complex causal chains and mechanisms
         2. Multi-level relationships between elements
         3. Contradictory evidence and scientific debates
@@ -200,11 +219,11 @@ class LLMManager:
 
             with self.anthropic_client.beta.messages.stream(
                 model=self.anthropic_model,
-                max_tokens=ANTHROPIC_MAX_TOKENS,
+                max_tokens=self.max_tokens,
                 messages=messages,
                 thinking={
                     "type": "enabled",
-                    "budget_tokens": ANTHROPIC_THINKING_BUDGET
+                    "budget_tokens": self.thinking_budget
                 },
                 betas=[ANTHROPIC_BETA_HEADER]
             ) as stream:

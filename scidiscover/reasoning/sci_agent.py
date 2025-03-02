@@ -14,14 +14,26 @@ class SciAgent:
     Orchestrates multi-agent scientific analysis and discovery
     Based on SciAgents (Ghafarollahi & Buehler, 2024)
     """
-    def __init__(self):
-        self.llm_manager = LLMManager()
+    def __init__(self, high_demand_mode=True):
+        self.llm_manager = LLMManager(high_demand_mode=high_demand_mode)
         self.ontologist = OntologistAgent(self.llm_manager)
         self.scientist = ScientistAgent(self.llm_manager)
         self.expander = ExpanderAgent(self.llm_manager)
         self.critic = CriticAgent(self.llm_manager)
         self.kg_reasoner = KGReasoningAgent(self.llm_manager)
         self.debate_orchestrator = DebateOrchestrator(self.llm_manager)
+        self.high_demand_mode = high_demand_mode
+
+    def set_thinking_mode(self, high_demand=True):
+        """
+        Set the thinking mode for Claude's extended thinking capabilities
+        Args:
+            high_demand: If True, use higher token limits (64K thinking, 80K max)
+                         If False, use lower token limits (32K thinking, 64K max)
+        """
+        self.high_demand_mode = high_demand
+        self.llm_manager.set_thinking_mode(high_demand)
+        print(f"SciAgent thinking mode set to: {'High-Demand' if high_demand else 'Low-Demand'}")
 
     def analyze_mechanism(self, query: str, novelty_score: float = 0.5, include_established: bool = True) -> Dict:
         """
@@ -34,6 +46,7 @@ class SciAgent:
         try:
             print(f"Starting analysis of query: {query}")
             print(f"Novelty score: {novelty_score}, Include established: {include_established}")
+            print(f"Using thinking mode: {'High-Demand' if self.high_demand_mode else 'Low-Demand'}")
 
             # Step 1: Direct query analysis if concept extraction fails
             # This is a simplification to ensure we always get results
@@ -104,6 +117,7 @@ class SciAgent:
         try:
             print(f"Starting debate-driven analysis of query: {query}")
             print(f"Novelty score: {novelty_score}")
+            print(f"Using thinking mode: {'High-Demand' if self.high_demand_mode else 'Low-Demand'}")
 
             # Step 1: Extract concepts
             concepts = []
