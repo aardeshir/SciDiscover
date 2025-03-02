@@ -16,36 +16,52 @@ class LLMManager:
         """Generate response using specified LLM"""
         try:
             if model_preference == "anthropic":
-                # Simple message template
-                message = {
-                    "role": "user",
-                    "content": f"""You are a molecular biology expert. Analyze this query and provide detailed scientific insights.
+                # Structured system prompt
+                system_prompt = """You are a molecular biology expert. Your task is to analyze scientific queries and provide detailed insights.
+When responding:
+1. Keep your response focused and well-structured
+2. Ensure all JSON fields are properly formatted
+3. Provide comprehensive scientific details
+"""
+                # Build message with clear JSON structure
+                message_content = f"""{system_prompt}
 
-Query: {prompt}
+Analyze this query and provide insights:
+{prompt}
 
-Return ONLY a valid JSON object with this structure:
+Return your analysis as a valid JSON object with this exact structure:
 {{
     "primary_analysis": {{
-        "pathways": ["List each pathway with clear description"],
-        "genes": [
-            {{"name": "Gene symbol", "role": "Detailed role description"}}
+        "pathways": [
+            "Clear description of each molecular pathway"
         ],
-        "mechanisms": "Detailed mechanism description",
-        "timeline": ["Key temporal events"],
-        "evidence": ["Supporting evidence"],
-        "implications": ["Clinical implications"]
+        "genes": [
+            {{
+                "name": "GENE_SYMBOL",
+                "role": "Detailed description of gene's role"
+            }}
+        ],
+        "mechanisms": "Comprehensive mechanism description",
+        "timeline": [
+            "Key temporal events"
+        ],
+        "evidence": [
+            "Supporting experimental evidence"
+        ],
+        "implications": [
+            "Clinical implications"
+        ]
     }},
-    "validation": "Validation summary",
+    "validation": "Analysis validation summary",
     "confidence_score": 0.85
 }}"""
-                }
 
                 try:
-                    # Get response
+                    # Make API request
                     response = self.anthropic_client.messages.create(
                         model=ANTHROPIC_MODEL,
                         max_tokens=4000,
-                        messages=[message],
+                        messages=[{"role": "user", "content": message_content}],
                         temperature=0.1
                     )
 
@@ -54,7 +70,7 @@ Return ONLY a valid JSON object with this structure:
                     if not content:
                         return {} if response_format == "json" else ""
 
-                    # Parse JSON
+                    # Handle JSON format
                     if response_format == "json":
                         try:
                             # Clean up response
@@ -66,13 +82,20 @@ Return ONLY a valid JSON object with this structure:
                             if content.endswith("```"):
                                 content = content.rsplit("```", 1)[0]
 
-                            # Parse JSON
+                            # Parse and validate JSON
                             result = json.loads(content.strip())
-
-                            # Validate structure
-                            if not isinstance(result, dict) or "primary_analysis" not in result:
+                            if not isinstance(result, dict):
                                 return {}
 
+                            # Validate required structure
+                            if "primary_analysis" not in result:
+                                return {}
+
+                            primary = result["primary_analysis"]
+                            if not isinstance(primary, dict):
+                                return {}
+
+                            # Return valid response
                             return result
 
                         except json.JSONDecodeError:
@@ -97,7 +120,7 @@ Return ONLY a valid JSON object with this structure:
                         }
                     ],
                     response_format={"type": "json_object"} if response_format == "json" else None,
-                    temperature=0.3
+                    temperature=0.1
                 )
 
                 content = response.choices[0].message.content
@@ -116,12 +139,12 @@ Return ONLY a valid JSON object with this structure:
         if not text:
             return {}
 
-        prompt = f"""Analyze this scientific text and extract key insights:
+        prompt = f"""Analyze this scientific text and provide insights:
 
 Text: {text}
 
-Return a JSON object with these sections:
-- concepts: List of key concepts
+Return your analysis as a valid JSON object with these fields:
+- concepts: List of key scientific concepts
 - relationships: List of concept relationships
 - hypotheses: List of potential hypotheses
 - implications: List of research implications"""
