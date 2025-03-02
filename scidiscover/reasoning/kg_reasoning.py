@@ -18,46 +18,45 @@ class KGReasoningAgent:
             if not query or not concepts:
                 return self._create_error_response("Invalid input parameters")
 
-            # Very simple prompt structure
-            prompt = f"""Return a JSON object analyzing this molecular mechanism:
+            # Build clear, structured prompt
+            analysis_prompt = f"""Analyze the molecular mechanisms and pathways for this scientific query.
+
 Query: {query}
-Concepts: {', '.join(concepts)}
-Novelty: {novelty_score}
-Include Known: {include_established}
 
-Required fields:
-{{
-    "primary_analysis": {{
-        "pathways": ["pathway descriptions"],
-        "genes": [
-            {{"name": "gene name", "role": "role description"}}
-        ],
-        "mechanisms": "mechanism description",
-        "timeline": ["temporal events"],
-        "evidence": ["evidence"],
-        "implications": ["implications"]
-    }},
-    "validation": "validation text",
-    "confidence_score": number between 0 and 1
-}}
-"""
+Key Concepts to Consider:
+{', '.join(concepts)}
 
+Analysis Parameters:
+- Novelty Score: {novelty_score} (0-1 scale, higher means more novel discoveries)
+- Include Established Mechanisms: {include_established}
+
+Focus on:
+1. Molecular pathways and their interactions
+2. Gene regulation and expression patterns
+3. Temporal sequence of events
+4. Supporting experimental evidence
+5. Clinical and therapeutic implications
+
+Provide your detailed scientific analysis, ensuring accuracy and completeness."""
+
+            print("Sending analysis request...")
             analysis = self.llm_manager.generate_response(
-                prompt,
+                analysis_prompt,
                 model_preference="anthropic",
                 response_format="json",
                 enable_thinking=enable_thinking
             )
 
+            print(f"Received analysis response type: {type(analysis)}")
             if not isinstance(analysis, dict):
                 return self._create_error_response("Invalid response format")
 
             primary = analysis.get("primary_analysis", {})
             if not isinstance(primary, dict):
-                return self._create_error_response("Missing analysis structure")
+                return self._create_error_response("Invalid analysis structure")
 
-            # Return validated response
-            return {
+            # Build response with strict validation
+            result = {
                 "primary_analysis": {
                     "pathways": primary.get("pathways", []),
                     "genes": primary.get("genes", []),
@@ -70,7 +69,24 @@ Required fields:
                 "confidence_score": float(analysis.get("confidence_score", 0))
             }
 
+            # Validate result structure
+            if not result["primary_analysis"]["pathways"]:
+                print("Warning: No pathways found in analysis")
+            if not result["primary_analysis"]["genes"]:
+                print("Warning: No genes found in analysis")
+            if result["primary_analysis"]["mechanisms"] == "No mechanism analysis available":
+                print("Warning: No mechanism description available")
+            if not result["primary_analysis"]["timeline"]:
+                print("Warning: No temporal events found")
+            if not result["primary_analysis"]["evidence"]:
+                print("Warning: No supporting evidence found")
+            if not result["primary_analysis"]["implications"]:
+                print("Warning: No implications found")
+
+            return result
+
         except Exception as e:
+            print(f"Error in mechanism analysis: {str(e)}")
             return self._create_error_response(str(e))
 
     def _create_error_response(self, error_message: str) -> Dict:
@@ -98,11 +114,7 @@ Required fields:
             prompt = f"""Validate this scientific hypothesis:
 {json.dumps(hypothesis, indent=2)}
 
-Provide a validation analysis as JSON with these fields:
-- supported_claims: List of claims supported by evidence
-- missing_evidence: List of gaps in evidence
-- alternative_mechanisms: List of alternative explanations
-- confidence_score: Validation confidence (0-1)"""
+Analyze the evidence support and provide assessment."""
 
             validation = self.llm_manager.generate_response(
                 prompt,
