@@ -1,6 +1,7 @@
 """
 Knowledge Graph Reasoning Agent
 Implements scientific discovery through graph-based concept exploration
+Enhanced for Claude-3 capabilities with extended context and reasoning
 """
 from typing import Dict, List, Optional
 from ..knowledge.kg_coi import KGCOIManager
@@ -37,12 +38,38 @@ class KGReasoningAgent:
         - Emerging hypotheses
         - Novel interaction pathways
         - Cutting-edge experimental evidence
+        - Potential breakthrough mechanisms
+        - Cross-disciplinary connections
+        - High-impact preliminary findings
+        - Novel computational predictions
+        - Emerging therapeutic targets
+        - Innovative experimental approaches
 
         If novelty_score is low or include_established is true, include:
         - Well-validated mechanisms
         - Classical pathways
         - Foundational discoveries
         - Established experimental evidence
+        - Core regulatory circuits
+        - Essential molecular interactions
+        - Canonical signaling cascades
+        - Textbook knowledge
+        - Historical breakthroughs
+        - Standard therapeutic approaches
+
+        Leverage Claude's extended reasoning to consider:
+        1. Complex temporal dynamics
+        2. Non-linear feedback loops
+        3. Multi-scale interactions
+        4. Stochastic effects
+        5. Environmental influences 
+        6. Epigenetic regulation
+        7. Post-translational modifications
+        8. Spatial organization
+        9. Tissue-specific contexts
+        10. Development stages
+        11. Disease states
+        12. Therapeutic implications
 
         Format your response as a JSON array of relationships with this structure:
         [
@@ -51,7 +78,12 @@ class KGReasoningAgent:
                 "target": "concept2",
                 "type": "mechanistic relationship type",
                 "evidence": ["supporting evidence 1", "supporting evidence 2"],
-                "novelty": float  # 0-1 score indicating how novel this relationship is
+                "novelty": float,  # 0-1 score indicating how novel this relationship is
+                "confidence": float,  # 0-1 score indicating evidence strength
+                "temporal_dynamics": ["temporal sequence details"],
+                "regulatory_circuits": ["regulatory mechanism details"],
+                "spatial_context": ["spatial organization details"],
+                "clinical_relevance": ["therapeutic implications"]
             }}
         ]
         """
@@ -95,22 +127,49 @@ class KGReasoningAgent:
             Novelty Level: {novelty_score} (0: Well-established, 1: Novel/Recent)
             Include Established Mechanisms: {include_established}
 
+            Leverage Claude's extended thinking capabilities (64000 tokens) to provide:
+            1. Comprehensive mechanistic explanations
+            2. Detailed molecular interactions
+            3. Temporal dynamics analysis
+            4. Multi-scale integration
+            5. Clinical implications
+            6. Future research directions
+
             Consider:
             1. Sequential progression through each path
             2. Mechanistic connections between concepts
             3. Supporting experimental evidence
             4. Potential regulatory interactions
+            5. Cell-type specific effects
+            6. Tissue microenvironment
+            7. Systems-level impact
+            8. Therapeutic potential
+            9. Biomarker implications
+            10. Drug development opportunities
 
             If novelty_score is high, emphasize:
             - Recently discovered mechanisms
             - Novel pathway interactions
             - Emerging therapeutic targets
             - Cutting-edge experimental approaches
+            - Cross-disciplinary insights
+            - Computational predictions
+            - High-risk, high-reward hypotheses
+            - Innovative therapeutic strategies
+            - Breakthrough technologies
+            - Paradigm-shifting concepts
 
             If novelty_score is low or include_established is true, include:
             - Well-validated mechanisms
             - Classical regulatory pathways
             - Established experimental evidence
+            - Core molecular machinery
+            - Essential biological processes
+            - Standard therapeutic approaches
+            - Validated biomarkers
+            - Proven drug targets
+            - Historical discoveries
+            - Clinical standards
 
             Format your response as a JSON object with this structure:
             {{
@@ -118,14 +177,33 @@ class KGReasoningAgent:
                 "mechanisms": {{
                     "pathways": ["key pathways identified"],
                     "interactions": ["mechanistic interactions"],
-                    "regulation": ["regulatory mechanisms"]
+                    "regulation": ["regulatory mechanisms"],
+                    "temporal_dynamics": ["temporal progression details"],
+                    "spatial_organization": ["spatial context information"],
+                    "cell_type_effects": ["cell-specific mechanisms"],
+                    "tissue_context": ["tissue-level implications"]
                 }},
-                "evidence": ["supporting evidence"],
+                "evidence": {{
+                    "experimental": ["experimental evidence"],
+                    "computational": ["computational predictions"],
+                    "clinical": ["clinical observations"]
+                }},
                 "predictions": ["testable predictions"],
                 "novelty_scores": {{
                     "pathways": float,  # Average novelty of pathways
                     "evidence": float,  # Average novelty of evidence
+                    "concepts": float,  # Average novelty of concepts
                     "overall": float    # Overall hypothesis novelty
+                }},
+                "therapeutic_implications": {{
+                    "drug_targets": ["potential therapeutic targets"],
+                    "biomarkers": ["candidate biomarkers"],
+                    "treatment_strategies": ["proposed interventions"]
+                }},
+                "future_directions": {{
+                    "key_questions": ["important open questions"],
+                    "technical_needs": ["required technological advances"],
+                    "validation_approaches": ["suggested validation methods"]
                 }}
             }}
             """
@@ -156,9 +234,11 @@ class KGReasoningAgent:
                 "hypothesis": {
                     "hypothesis": "Analysis failed",
                     "mechanisms": {"pathways": [], "interactions": [], "regulation": []},
-                    "evidence": [],
+                    "evidence": {"experimental": [], "computational": [], "clinical": []},
                     "predictions": [],
-                    "novelty_scores": {"pathways": 0, "evidence": 0, "overall": 0}
+                    "novelty_scores": {"pathways": 0, "evidence": 0, "overall": 0},
+                    "therapeutic_implications": {"drug_targets": [], "biomarkers": [], "treatment_strategies": []},
+                    "future_directions": {"key_questions": [], "technical_needs": [], "validation_approaches": []}
                 },
                 "knowledge_graph": {"nodes": [], "edges": []}
             }
@@ -184,12 +264,17 @@ class KGReasoningAgent:
             Graph Evidence: {json.dumps(list(relevant_subgraph.edges(data=True)), indent=2)}
             Novelty Score: {hypothesis.get("novelty_score", 0.5)}
 
-            Consider:
+            Leverage Claude's comprehensive analysis capabilities to consider:
             1. Support from graph relationships
             2. Completeness of mechanistic explanation
             3. Alternative paths or mechanisms
             4. Potential gaps in evidence
             5. Balance between novelty and established knowledge
+            6. Integration with existing literature
+            7. Technical feasibility
+            8. Clinical relevance
+            9. Therapeutic potential
+            10. Future research implications
 
             Format your response as a JSON object with this structure:
             {{
@@ -200,10 +285,27 @@ class KGReasoningAgent:
                     "novelty_assessment": {{
                         "innovative_aspects": ["novel elements identified"],
                         "established_foundations": ["well-validated components"],
+                        "cross_disciplinary_insights": ["interdisciplinary connections"],
+                        "technical_innovations": ["methodological advances"],
                         "score": float  # 0-1 novelty score
+                    }},
+                    "feasibility_assessment": {{
+                        "technical_requirements": ["required methods/tools"],
+                        "potential_challenges": ["anticipated difficulties"],
+                        "mitigation_strategies": ["suggested solutions"]
+                    }},
+                    "clinical_translation": {{
+                        "therapeutic_potential": ["treatment possibilities"],
+                        "biomarker_candidates": ["potential biomarkers"],
+                        "development_timeline": ["estimated development stages"]
                     }}
                 }},
-                "confidence_score": float  # 0-1 score
+                "confidence_score": float,  # 0-1 score
+                "impact_assessment": {{
+                    "scientific_impact": float,  # 0-1 score
+                    "clinical_impact": float,    # 0-1 score
+                    "technical_impact": float    # 0-1 score
+                }}
             }}
             """
 
@@ -228,8 +330,25 @@ class KGReasoningAgent:
                     "novelty_assessment": {
                         "innovative_aspects": [],
                         "established_foundations": [],
+                        "cross_disciplinary_insights": [],
+                        "technical_innovations": [],
                         "score": 0.0
+                    },
+                    "feasibility_assessment": {
+                        "technical_requirements": [],
+                        "potential_challenges": [],
+                        "mitigation_strategies": []
+                    },
+                    "clinical_translation": {
+                        "therapeutic_potential": [],
+                        "biomarker_candidates": [],
+                        "development_timeline": []
                     }
                 },
-                "confidence_score": 0.0
+                "confidence_score": 0.0,
+                "impact_assessment": {
+                    "scientific_impact": 0.0,
+                    "clinical_impact": 0.0,
+                    "technical_impact": 0.0
+                }
             }

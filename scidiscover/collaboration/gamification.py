@@ -17,18 +17,18 @@ class Contribution:
     timestamp: datetime
     points: int
     references: List[str]  # IDs of referenced papers/evidence
-    
+
 class GamificationManager:
     """Manages scoring and rewards for scientific contributions"""
-    
+
     def __init__(self):
         self.contributions: Dict[str, Contribution] = {}
         self.user_scores: Dict[str, int] = {}
-        
+
     def calculate_contribution_score(self, contribution: Contribution) -> int:
         """
         Calculate points for a scientific contribution
-        
+
         Scoring factors:
         - Evidence strength (0-40 points)
         - Novelty (0-30 points)
@@ -38,9 +38,9 @@ class GamificationManager:
         evidence_points = int(contribution.evidence_score * 40)
         novelty_points = int(contribution.novelty_score * 30)
         reference_points = min(len(contribution.references) * 5, 20)
-        
+
         return evidence_points + novelty_points + reference_points
-    
+
     def add_contribution(self, 
                         user_id: str,
                         hypothesis_id: str,
@@ -50,9 +50,16 @@ class GamificationManager:
                         references: List[str]) -> Contribution:
         """
         Add a new scientific contribution
-        
+
         Returns the created contribution with calculated points
         """
+        # Validate scores are between 0 and 1
+        evidence_score = max(0.0, min(1.0, evidence_score))
+        novelty_score = max(0.0, min(1.0, novelty_score))
+
+        # Clean and validate references
+        valid_references = [ref.strip() for ref in references if ref.strip()]
+
         contribution = Contribution(
             id=f"c_{len(self.contributions)}",
             user_id=user_id,
@@ -62,28 +69,28 @@ class GamificationManager:
             novelty_score=novelty_score,
             timestamp=datetime.now(),
             points=0,  # Will be calculated
-            references=references
+            references=valid_references
         )
-        
+
         # Calculate points
         points = self.calculate_contribution_score(contribution)
         contribution.points = points
-        
+
         # Update user score
         if user_id not in self.user_scores:
             self.user_scores[user_id] = 0
         self.user_scores[user_id] += points
-        
+
         # Store contribution
         self.contributions[contribution.id] = contribution
-        
+
         return contribution
-    
+
     def get_user_achievements(self, user_id: str) -> Dict:
         """Get user's scientific achievements and stats"""
         user_contributions = [c for c in self.contributions.values() 
                             if c.user_id == user_id]
-        
+
         return {
             "total_score": self.user_scores.get(user_id, 0),
             "contributions": len(user_contributions),
@@ -92,7 +99,23 @@ class GamificationManager:
                 self.user_scores.get(user_id, 0)
             )
         }
-    
+
+    def get_point_breakdown(self, contribution: Contribution) -> Dict:
+        """Get detailed breakdown of points for a contribution"""
+        evidence_points = int(contribution.evidence_score * 40)
+        novelty_points = int(contribution.novelty_score * 30)
+        reference_points = min(len(contribution.references) * 5, 20)
+
+        return {
+            "evidence_points": evidence_points,
+            "novelty_points": novelty_points,
+            "reference_points": reference_points,
+            "total_points": evidence_points + novelty_points + reference_points,
+            "evidence_score": contribution.evidence_score,
+            "novelty_score": contribution.novelty_score,
+            "num_references": len(contribution.references)
+        }
+
     def _calculate_expertise_level(self, score: int) -> str:
         """Calculate user's expertise level based on points"""
         if score < 100:

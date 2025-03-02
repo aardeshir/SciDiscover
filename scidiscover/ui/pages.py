@@ -25,26 +25,34 @@ def main_page():
         st.session_state.analysis_results = None
     if 'current_query' not in st.session_state:
         st.session_state.current_query = ""
+    if 'novelty_score' not in st.session_state:
+        st.session_state.novelty_score = 0.5
+    if 'include_established' not in st.session_state:
+        st.session_state.include_established = True
 
-    # Add novelty controls
+    # Add novelty controls in sidebar
     with st.sidebar:
         st.header("Analysis Controls")
 
-        # Novelty slider
+        # Novelty slider with session state
         novelty_score = st.slider(
             "Novelty Level",
             min_value=0.0,
             max_value=1.0,
-            value=0.5,
-            help="0: Well-established mechanisms, 1: Novel/recent discoveries"
+            value=st.session_state.novelty_score,
+            help="0: Well-established mechanisms, 1: Novel/recent discoveries",
+            key="novelty_slider"
         )
+        st.session_state.novelty_score = novelty_score
 
-        # Include established mechanisms checkbox
+        # Include established mechanisms checkbox with session state
         include_established = st.checkbox(
             "Include established mechanisms",
-            value=True,
-            help="Always include well-known pathways regardless of novelty setting"
+            value=st.session_state.include_established,
+            help="Always include well-known pathways regardless of novelty setting",
+            key="established_checkbox"
         )
+        st.session_state.include_established = include_established
 
         # Render user achievements
         render_user_achievements(gamification)
