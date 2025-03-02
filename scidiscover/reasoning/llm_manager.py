@@ -16,51 +16,36 @@ class LLMManager:
         """Generate response using specified LLM"""
         try:
             if model_preference == "anthropic":
-                # Construct a clear, structured prompt
-                system_message = """You are a scientific analysis expert. Analyze the given query about molecular mechanisms and provide:
-1. A detailed analysis of pathways and mechanisms
-2. Gene interactions and their roles
-3. Supporting evidence and implications
+                # Build basic prompt
+                base_prompt = """You are a scientific analysis expert specializing in molecular biology.
+Your task is to analyze the provided query and return a response following the exact format specified.
+Format your response as a valid JSON object, nothing else."""
 
-Structure your response with clear sections."""
-
-                final_prompt = f"""{system_message}
-
-Here is the scientific query to analyze:
-{prompt}
-
-Your response should be a valid JSON object with this exact structure:
-{{
-    "primary_analysis": {{
-        "pathways": [
-            "Clear descriptions of molecular pathways"
-        ],
+                # Add JSON structure for response format
+                if response_format == "json":
+                    format_guide = """
+Your response must be a valid JSON object with exactly these fields:
+{
+    "primary_analysis": {
+        "pathways": ["Detailed pathway descriptions"],
         "genes": [
-            {{
-                "name": "GENE1",
-                "role": "Detailed description of gene's role"
-            }}
+            {"name": "GENE_NAME", "role": "Detailed description of gene's role"}
         ],
         "mechanisms": "Comprehensive mechanism description",
-        "timeline": [
-            "Key temporal events"
-        ],
-        "evidence": [
-            "Supporting experimental evidence"
-        ],
-        "implications": [
-            "Clinical and therapeutic implications"
-        ]
-    }},
+        "timeline": ["Key temporal events"],
+        "evidence": ["Supporting experimental evidence"],
+        "implications": ["Clinical and therapeutic implications"]
+    },
     "validation": "Validation analysis",
-    "confidence_score": 0.85,
-    "thinking_process": "Analysis steps and reasoning"
-}}
+    "confidence_score": 0.85
+}"""
+                    final_prompt = f"{base_prompt}\n\n{format_guide}\n\nQuery to analyze:\n{prompt}"
+                else:
+                    final_prompt = f"{base_prompt}\n\nQuery to analyze:\n{prompt}"
 
-Focus on scientific accuracy and provide complete details."""
-
-                # Get response with error handling
+                # Make API request
                 try:
+                    print("Sending request to Claude...")
                     response = self.anthropic_client.messages.create(
                         model=ANTHROPIC_MODEL,
                         max_tokens=4000,
@@ -68,47 +53,36 @@ Focus on scientific accuracy and provide complete details."""
                         temperature=0.1
                     )
 
+                    # Extract and validate content
                     content = response.content[0].text if hasattr(response, 'content') and response.content else ""
                     if not content:
                         print("Empty response from Claude")
                         return {}
 
-                    # Parse and validate JSON
+                    # Handle JSON parsing
                     if response_format == "json":
                         try:
                             result = json.loads(content)
-
-                            # Validate required fields
                             if not isinstance(result, dict):
                                 print("Response is not a dictionary")
                                 return {}
 
                             if "primary_analysis" not in result:
-                                print("Missing primary_analysis")
+                                print("Missing primary_analysis field")
                                 return {}
-
-                            primary = result["primary_analysis"]
-                            if not isinstance(primary, dict):
-                                print("Invalid primary_analysis structure")
-                                return {}
-
-                            # Ensure all required fields exist
-                            required_fields = ["pathways", "genes", "mechanisms", "timeline", "evidence", "implications"]
-                            for field in required_fields:
-                                if field not in primary:
-                                    print(f"Missing required field: {field}")
-                                    return {}
 
                             return result
+
                         except json.JSONDecodeError as e:
-                            print(f"JSON parsing error: {e}")
+                            print(f"JSON parsing error: {str(e)}")
+                            print(f"Failed content: {content[:200]}...")
                             return {}
 
                     return content
 
                 except Exception as e:
                     print(f"Claude API error: {str(e)}")
-                    return {}
+                    return {} if response_format == "json" else ""
 
             elif model_preference == "openai":
                 response = self.openai_client.chat.completions.create(
@@ -144,20 +118,19 @@ Focus on scientific accuracy and provide complete details."""
         if not text:
             return {}
 
-        prompt = """Analyze this scientific text and provide insights.
+        prompt = f"""Analyze this scientific text and extract key insights.
 Format your response as a valid JSON object with these sections:
-1. Key molecular concepts
+1. Key concepts
 2. Relationships between concepts
 3. Potential hypotheses
 4. Research implications
 
-Text: """ + text
+Text: {text}"""
 
         response = self.generate_response(
             prompt,
             model_preference="anthropic",
-            response_format="json",
-            enable_thinking=True
+            response_format="json"
         )
 
         return response if isinstance(response, dict) else {}

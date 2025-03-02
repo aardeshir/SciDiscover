@@ -15,31 +15,31 @@ class KGReasoningAgent:
                              enable_thinking: bool = True) -> Dict:
         """Analyze molecular mechanisms using graph path exploration"""
         try:
+            # Validate inputs
             if not query or not concepts:
-                return self._create_error_response("Invalid input parameters")
+                return self._create_error_response("Missing required inputs")
 
-            # Build clear, structured prompt
-            analysis_prompt = f"""Analyze the molecular mechanisms and pathways for this scientific query.
+            # Build analysis prompt
+            analysis_prompt = f"""Analyze these molecular mechanisms in detail:
 
-Query: {query}
+Scientific Query: {query}
 
-Key Concepts to Consider:
-{', '.join(concepts)}
+Key Concepts: {', '.join(concepts)}
 
 Analysis Parameters:
-- Novelty Score: {novelty_score} (0-1 scale, higher means more novel discoveries)
+- Novelty Score: {novelty_score} (0-1 scale, higher means more novel/recent discoveries)
 - Include Established Mechanisms: {include_established}
 
-Focus on:
-1. Molecular pathways and their interactions
+Provide a comprehensive analysis including:
+1. Key molecular pathways and their interactions
 2. Gene regulation and expression patterns
 3. Temporal sequence of events
 4. Supporting experimental evidence
 5. Clinical and therapeutic implications
 
-Provide your detailed scientific analysis, ensuring accuracy and completeness."""
+Focus on scientific accuracy and mechanistic details."""
 
-            print("Sending analysis request...")
+            # Get analysis from LLM
             analysis = self.llm_manager.generate_response(
                 analysis_prompt,
                 model_preference="anthropic",
@@ -47,7 +47,7 @@ Provide your detailed scientific analysis, ensuring accuracy and completeness.""
                 enable_thinking=enable_thinking
             )
 
-            print(f"Received analysis response type: {type(analysis)}")
+            # Validate response structure
             if not isinstance(analysis, dict):
                 return self._create_error_response("Invalid response format")
 
@@ -55,7 +55,7 @@ Provide your detailed scientific analysis, ensuring accuracy and completeness.""
             if not isinstance(primary, dict):
                 return self._create_error_response("Invalid analysis structure")
 
-            # Build response with strict validation
+            # Build validated response
             result = {
                 "primary_analysis": {
                     "pathways": primary.get("pathways", []),
@@ -69,19 +69,14 @@ Provide your detailed scientific analysis, ensuring accuracy and completeness.""
                 "confidence_score": float(analysis.get("confidence_score", 0))
             }
 
-            # Validate result structure
+            # Verify content
+            print("Validating analysis content...")
             if not result["primary_analysis"]["pathways"]:
-                print("Warning: No pathways found in analysis")
+                print("Warning: No pathways found")
             if not result["primary_analysis"]["genes"]:
-                print("Warning: No genes found in analysis")
-            if result["primary_analysis"]["mechanisms"] == "No mechanism analysis available":
-                print("Warning: No mechanism description available")
-            if not result["primary_analysis"]["timeline"]:
-                print("Warning: No temporal events found")
-            if not result["primary_analysis"]["evidence"]:
-                print("Warning: No supporting evidence found")
-            if not result["primary_analysis"]["implications"]:
-                print("Warning: No implications found")
+                print("Warning: No genes found")
+            if not result["primary_analysis"]["mechanisms"] or result["primary_analysis"]["mechanisms"] == "No mechanism analysis available":
+                print("Warning: No mechanism description")
 
             return result
 
@@ -114,7 +109,11 @@ Provide your detailed scientific analysis, ensuring accuracy and completeness.""
             prompt = f"""Validate this scientific hypothesis:
 {json.dumps(hypothesis, indent=2)}
 
-Analyze the evidence support and provide assessment."""
+Provide validation analysis including:
+1. Supported claims
+2. Missing evidence
+3. Alternative mechanisms
+4. Confidence assessment"""
 
             validation = self.llm_manager.generate_response(
                 prompt,
@@ -122,9 +121,7 @@ Analyze the evidence support and provide assessment."""
                 response_format="json"
             )
 
-            if isinstance(validation, dict):
-                return validation
-            return self._create_error_response("Failed to validate hypothesis")
+            return validation if isinstance(validation, dict) else self._create_error_response("Failed to validate hypothesis")
 
         except Exception as e:
             return self._create_error_response(f"Validation error: {str(e)}")
