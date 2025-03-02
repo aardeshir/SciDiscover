@@ -19,7 +19,8 @@ class KGReasoningAgent:
 
     def analyze_mechanism_path(self, query: str, concepts: List[str], 
                             novelty_score: float = 0.5, 
-                            include_established: bool = True) -> Dict:
+                            include_established: bool = True,
+                            enable_thinking: bool = True) -> Dict:
         """
         Analyze molecular mechanisms using graph path exploration
         """
@@ -70,7 +71,8 @@ class KGReasoningAgent:
             analysis = self.llm_manager.generate_response(
                 analysis_prompt,
                 model_preference="anthropic",
-                response_format="json"
+                response_format="json",
+                enable_thinking=enable_thinking
             )
 
             print("Raw Anthropic response:", analysis)
@@ -103,7 +105,8 @@ class KGReasoningAgent:
                 },
                 "validation": analysis.get("validation", "No validation available"),
                 "confidence_score": float(analysis.get("confidence_score", 0)),
-                "graph_analysis": graph_data
+                "graph_analysis": graph_data,
+                "thinking_process": analysis.get("thinking_process") if enable_thinking else None
             }
 
             print("Analysis completed successfully")

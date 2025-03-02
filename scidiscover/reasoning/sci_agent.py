@@ -21,13 +21,16 @@ class SciAgent:
         self.critic = CriticAgent(self.llm_manager)
         self.kg_reasoner = KGReasoningAgent(self.llm_manager)
 
-    def analyze_mechanism(self, query: str, novelty_score: float = 0.5, include_established: bool = True) -> Dict:
+    def analyze_mechanism(self, query: str, novelty_score: float = 0.5, 
+                        include_established: bool = True,
+                        enable_thinking: bool = True) -> Dict:
         """
         Perform deep scientific analysis using multi-agent approach
         Args:
             query: Scientific query to analyze
             novelty_score: Target novelty level (0: established, 1: novel)
             include_established: Whether to include well-known mechanisms
+            enable_thinking: Whether to show Claude's reasoning process
         """
         try:
             # Step 1: Ontological Analysis
@@ -81,7 +84,8 @@ class SciAgent:
                 query, 
                 concept_list,
                 novelty_score=novelty_score,
-                include_established=include_established
+                include_established=include_established,
+                enable_thinking=enable_thinking
             )
 
             if "error" in graph_analysis:
@@ -93,7 +97,8 @@ class SciAgent:
                 "primary_analysis": graph_analysis["primary_analysis"],
                 "validation": graph_analysis.get("validation", "No validation available"),
                 "confidence_score": graph_analysis.get("confidence_score", 0),
-                "graph_analysis": graph_analysis.get("graph_analysis", {})
+                "graph_analysis": graph_analysis.get("graph_analysis", {}),
+                "thinking_process": graph_analysis.get("thinking_process") if enable_thinking else None
             }
 
         except Exception as e:
