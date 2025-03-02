@@ -20,6 +20,12 @@ def main_page():
     pubtator = PubTatorClient()
     gamification = GamificationManager()
 
+    # Initialize session state
+    if 'analysis_results' not in st.session_state:
+        st.session_state.analysis_results = None
+    if 'current_query' not in st.session_state:
+        st.session_state.current_query = ""
+
     # Add novelty controls
     with st.sidebar:
         st.header("Analysis Controls")
@@ -46,77 +52,82 @@ def main_page():
     query = st.text_area(
         "Enter your scientific query:",
         height=100,
-        help="Describe the molecular mechanism or pathway you want to analyze"
+        help="Describe the molecular mechanism or pathway you want to analyze",
+        value=st.session_state.current_query
     )
 
-    if st.button("Analyze", type="primary"):
-        if not query:
-            st.warning("Please enter a scientific query to analyze.")
-            return
+    analyze_clicked = st.button("Analyze", type="primary")
 
+    if analyze_clicked and query:
+        st.session_state.current_query = query
         with st.spinner("Performing deep scientific analysis..."):
             analysis = sci_agent.analyze_mechanism(
                 query,
                 novelty_score=novelty_score,
                 include_established=include_established
             )
+            st.session_state.analysis_results = analysis
 
-            if "error" in analysis:
-                st.error("Error in analysis. Please try again.")
-                return
+    # Display results if available
+    if st.session_state.analysis_results:
+        analysis = st.session_state.analysis_results
 
-            # Display Primary Analysis
-            st.header("Molecular Mechanism Analysis")
+        if "error" in analysis:
+            st.error("Error in analysis. Please try again.")
+            return
 
-            # Show confidence score
-            confidence = analysis.get("confidence_score", 0)
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Analysis Confidence Score", f"{confidence:.2f}")
-            with col2:
-                st.metric("Novelty Level", f"{novelty_score:.2f}")
+        # Display Primary Analysis
+        st.header("Molecular Mechanism Analysis")
 
-            # Display pathways
-            st.subheader("Key Molecular Pathways")
-            for pathway in analysis["primary_analysis"]["pathways"]:
-                st.markdown(f"- {pathway}")
+        # Show confidence score
+        confidence = analysis.get("confidence_score", 0)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Analysis Confidence Score", f"{confidence:.2f}")
+        with col2:
+            st.metric("Novelty Level", f"{novelty_score:.2f}")
 
-            # Display genes and their roles
-            st.subheader("Relevant Genes and Their Roles")
-            for gene in analysis["primary_analysis"]["genes"]:
-                st.markdown(f"- **{gene['name']}**: {gene['role']}")
+        # Display pathways
+        st.subheader("Key Molecular Pathways")
+        for pathway in analysis["primary_analysis"]["pathways"]:
+            st.markdown(f"- {pathway}")
 
-            # Display detailed mechanisms
-            st.subheader("Detailed Molecular Mechanisms")
-            st.markdown(analysis["primary_analysis"]["mechanisms"])
+        # Display genes and their roles
+        st.subheader("Relevant Genes and Their Roles")
+        for gene in analysis["primary_analysis"]["genes"]:
+            st.markdown(f"- **{gene['name']}**: {gene['role']}")
 
-            # Display temporal sequence
-            st.subheader("Temporal Sequence of Events")
-            for idx, event in enumerate(analysis["primary_analysis"]["timeline"], 1):
-                st.markdown(f"{idx}. {event}")
+        # Display detailed mechanisms
+        st.subheader("Detailed Molecular Mechanisms")
+        st.markdown(analysis["primary_analysis"]["mechanisms"])
 
-            # Display experimental evidence
-            st.subheader("Supporting Experimental Evidence")
-            for evidence in analysis["primary_analysis"]["evidence"]:
-                st.markdown(f"- {evidence}")
+        # Display temporal sequence
+        st.subheader("Temporal Sequence of Events")
+        for idx, event in enumerate(analysis["primary_analysis"]["timeline"], 1):
+            st.markdown(f"{idx}. {event}")
 
-            # Display implications
-            st.subheader("Clinical and Therapeutic Implications")
-            st.markdown(analysis["primary_analysis"]["implications"])
+        # Display experimental evidence
+        st.subheader("Supporting Experimental Evidence")
+        for evidence in analysis["primary_analysis"]["evidence"]:
+            st.markdown(f"- {evidence}")
 
-            # Show validation insights
-            with st.expander("View Validation Analysis"):
-                st.markdown(analysis["validation"])
+        # Display implications
+        st.subheader("Clinical and Therapeutic Implications")
+        st.markdown(analysis["primary_analysis"]["implications"])
 
-            # Add collaborative hypothesis building
+        # Show validation insights
+        with st.expander("View Validation Analysis"):
+            st.markdown(analysis["validation"])
+
+        # Add collaborative hypothesis building
+        st.markdown("---")
+        render_collaborative_hypothesis(
+            gamification,
+            hypothesis_id=query[:50]  # Use truncated query as hypothesis ID
+        )
+
+        # Display concept network
+        if "graph_analysis" in analysis:
             st.markdown("---")
-            render_collaborative_hypothesis(
-                gamification,
-                hypothesis_id=query[:50]  # Use truncated query as hypothesis ID
-            )
-
-            # Display concept network
-            if "graph_analysis" in analysis:
-                st.markdown("---")
-                st.header("Knowledge Graph Visualization")
-                render_concept_network(analysis["graph_analysis"].get("concept_paths"))
+            st.header("Knowledge Graph Visualization")
+            render_concept_network(analysis["graph_analysis"].get("concept_paths"))
