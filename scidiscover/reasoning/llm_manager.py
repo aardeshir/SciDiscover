@@ -31,8 +31,8 @@ class LLMManager:
                 5. Practical implications
 
                 Structure your response to include both:
-                1. Your thinking process
-                2. The final formatted answer
+                1. Your thinking process (prefix with "THINKING PROCESS:")
+                2. The final formatted answer (prefix with "FINAL ANALYSIS:")
 
                 Original Query:
                 """ + prompt
@@ -45,40 +45,53 @@ class LLMManager:
                 ]
 
                 print(f"Sending request to Claude with model: {ANTHROPIC_MODEL}")
-                response = self.anthropic_client.messages.create(
+                response = None
+                full_content = ""
+
+                # Use streaming for long responses
+                stream = self.anthropic_client.messages.stream(
                     model=ANTHROPIC_MODEL,
                     max_tokens=64000 if enable_thinking else 4000,
                     messages=messages,
                     temperature=0.3
                 )
 
-                # Extract content from response
-                content = response.content[0].text if hasattr(response, 'content') else None
+                # Collect streamed response
+                for chunk in stream:
+                    if chunk.type == "content_block_delta":
+                        if chunk.delta.text:
+                            full_content += chunk.delta.text
+                    elif chunk.type == "message_delta":
+                        response = chunk
 
-                if not content:
+                if not full_content:
                     print("No content in Anthropic response")
                     return {} if response_format == "json" else ""
 
-                print(f"\nRaw Anthropic response: {content[:200]}...")  # Debug log
+                print(f"\nCollected response length: {len(full_content)}")
+                print(f"Sample of response: {full_content[:200]}...")
 
                 # Process response based on format
                 if response_format == "json":
                     try:
-                        # First, try to extract just the JSON part
-                        if "```json" in content:
-                            json_content = content.split("```json")[1].split("```")[0]
-                        elif "Here's my final analysis in JSON format:" in content:
-                            json_content = content.split("Here's my final analysis in JSON format:")[1]
+                        # First find the JSON part
+                        if "```json" in full_content:
+                            json_content = full_content.split("```json")[1].split("```")[0]
+                        elif "FINAL ANALYSIS:" in full_content:
+                            json_content = full_content.split("FINAL ANALYSIS:")[1].strip()
                         else:
-                            json_content = content
+                            json_content = full_content
 
                         # Clean up and parse JSON
                         json_content = json_content.strip()
                         result = json.loads(json_content)
 
                         # Add thinking process if available
-                        if enable_thinking and "THINKING PROCESS:" in content:
-                            thinking = content.split("THINKING PROCESS:")[1].split("FINAL ANALYSIS:")[0].strip()
+                        if enable_thinking and "THINKING PROCESS:" in full_content:
+                            thinking = full_content.split("THINKING PROCESS:")[1]
+                            if "FINAL ANALYSIS:" in thinking:
+                                thinking = thinking.split("FINAL ANALYSIS:")[0]
+                            thinking = thinking.strip()
                             if isinstance(result, dict):
                                 result["thinking_process"] = thinking
 
@@ -86,9 +99,10 @@ class LLMManager:
                         return result
                     except json.JSONDecodeError as e:
                         print(f"JSON parsing error: {e}")
-                        print(f"Failed content: {content}")
+                        print(f"Failed content: {full_content}")
                         return {}
-                return content
+
+                return full_content
 
             elif model_preference == "openai":
                 # OpenAI implementation remains unchanged
