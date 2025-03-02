@@ -11,10 +11,16 @@ PUBTATOR_BASE_URL = "https://www.ncbi.nlm.nih.gov/research/pubtator-api/publicat
 DB_PATH = "scidiscover.db"
 
 # LLM Configuration
-# the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-OPENAI_MODEL = "gpt-4o"
-# the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
-ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
+# Using the latest specialized models for scientific analysis
+# the newest OpenAI model is "o3-mini-2025-01-31" optimized for scientific research
+OPENAI_MODEL = "o3-mini-2025-01-31"
+# the newest Anthropic model is "claude-3-7-sonnet-latest" which was released January 31, 2025
+ANTHROPIC_MODEL = "claude-3-7-sonnet-latest"
+
+# Scientific Analysis Configuration
+PUBMED_BATCH_SIZE = 100
+MAX_PAPERS_TO_ANALYZE = 1000
+EVIDENCE_THRESHOLD = 0.85  # Minimum confidence score for including scientific claims
 
 # Knowledge Graph Configuration
 GRAPH_CACHE_DIR = ".graph_cache"
