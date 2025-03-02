@@ -15,12 +15,7 @@ def main_page():
     Powered by advanced language models and scientific knowledge bases.
     """)
 
-    # Initialize managers
-    sci_agent = SciAgent()
-    pubtator = PubTatorClient()
-    gamification = GamificationManager()
-
-    # Initialize session state
+    # Initialize session state first
     if 'analysis_results' not in st.session_state:
         st.session_state.analysis_results = None
     if 'current_query' not in st.session_state:
@@ -29,6 +24,11 @@ def main_page():
         st.session_state.novelty_score = 0.5
     if 'include_established' not in st.session_state:
         st.session_state.include_established = True
+
+    # Initialize managers
+    sci_agent = SciAgent()
+    pubtator = PubTatorClient()
+    gamification = GamificationManager()
 
     # Add novelty controls in sidebar
     with st.sidebar:
