@@ -16,13 +16,41 @@ class DebateOrchestrator:
     """
     def __init__(self, llm_manager: LLMManager):
         self.llm_manager = llm_manager
+        # Core agents
         self.ontologist = OntologistAgent(llm_manager)
         self.scientist = ScientistAgent(llm_manager)
         self.expander = ExpanderAgent(llm_manager)
         self.critic = CriticAgent(llm_manager)
+
+        # Extended specialized agents collection (dynamically selected based on query)
+        self.specialized_agents = {
+            "methodology": {
+                "role": "Methodology Expert",
+                "description": "Focuses on experimental design, statistical validity, and methodological rigor"
+            },
+            "domain": {
+                "role": "Domain Specialist",
+                "description": "Provides deep subject-matter expertise in relevant biological domains"
+            },
+            "statistics": {
+                "role": "Statistical Analyst",
+                "description": "Evaluates statistical evidence, bias, and confidence intervals"
+            },
+            "translational": {
+                "role": "Translational Researcher",
+                "description": "Focuses on clinical applications and therapeutic potential"
+            },
+            "evolution": {
+                "role": "Evolutionary Biologist",
+                "description": "Provides perspective on evolutionary constraints and advantages"
+            }
+        }
+
         self.debate_history = []
-        self.debate_rounds = 3
+        self.base_debate_rounds = 3
         self.update_callback = None  # Callback for real-time updates
+        self.convergence_threshold = 0.8  # Threshold for debate convergence
+        self.max_debate_rounds = 5  # Maximum number of rounds regardless of convergence
 
     def set_update_callback(self, callback: Callable):
         """
@@ -50,6 +78,21 @@ class DebateOrchestrator:
         print(f"With concepts: {concepts}")
         print(f"Targeting novelty level: {novelty_score}")
 
+        # Determine query complexity to set adaptive debate parameters
+        query_complexity = self._evaluate_query_complexity(query, concepts)
+
+        # Adjust debate rounds based on complexity
+        target_debate_rounds = min(
+            self.max_debate_rounds, 
+            max(2, int(self.base_debate_rounds * query_complexity))
+        )
+
+        print(f"Query complexity: {query_complexity:.2f} - Target debate rounds: {target_debate_rounds}")
+
+        # Select relevant specialized agents for this query
+        selected_specialists = self._select_specialized_agents(query, concepts)
+        print(f"Selected specialized agents: {[agent for agent in selected_specialists]}")
+
         # Initial hypothesis generation by scientist
         hypothesis = self._generate_initial_hypothesis(query, concepts)
 
@@ -60,12 +103,16 @@ class DebateOrchestrator:
         print(f"Initial hypothesis generated with score: {best_score}")
         self._add_to_debate_history("ScientistAgent", "initial_hypothesis", hypothesis)
 
-        # Run multiple rounds of debate
-        for round_num in range(1, self.debate_rounds + 1):
+        # Run multiple rounds of debate with convergence checking
+        round_num = 1
+        convergence = False
+        previous_score = best_score
+
+        while round_num <= target_debate_rounds and not convergence:
             print(f"\n=== Starting debate round {round_num} ===")
 
             # Critic challenges the hypothesis
-            critique = self._generate_critique(hypothesis)
+            critique = self._generate_critique(hypothesis, selected_specialists)
             self._add_to_debate_history("CriticAgent", "critique", critique)
             print(f"Critic has challenged the hypothesis with {len(critique.get('evaluation', {}).get('limitations', []))} limitations")
 
@@ -73,6 +120,25 @@ class DebateOrchestrator:
             refined_hypothesis = self._refine_hypothesis(hypothesis, critique)
             self._add_to_debate_history("ExpanderAgent", "refinement", refined_hypothesis)
             print(f"Expander has refined the hypothesis with {len(refined_hypothesis.get('expanded_mechanisms', {}).get('additional_pathways', []))} new pathways")
+
+            # Specialized agent contributions if available
+            if selected_specialists:
+                for specialist_key in selected_specialists:
+                    specialist_input = self._generate_specialist_contribution(
+                        specialist_key, 
+                        refined_hypothesis, 
+                        critique,
+                        query
+                    )
+                    agent_name = self.specialized_agents[specialist_key]["role"]
+                    self._add_to_debate_history(agent_name, "specialist_input", specialist_input)
+                    print(f"{agent_name} provided specialized input")
+
+                    # Integrate specialist contributions
+                    refined_hypothesis = self._integrate_specialist_input(
+                        refined_hypothesis, 
+                        specialist_input
+                    )
 
             # Scientist rebuts and further improves
             rebuttal = self._generate_rebuttal(refined_hypothesis, critique)
@@ -92,11 +158,100 @@ class DebateOrchestrator:
                 best_score = current_score
                 print(f"New best hypothesis found! Score: {best_score}")
 
+            # Check for convergence (diminishing improvements)
+            improvement = current_score - previous_score
+            if improvement < 0.05 and round_num >= 2:
+                convergence_probability = 1.0 - (improvement * 10)
+                if convergence_probability > self.convergence_threshold:
+                    convergence = True
+                    print(f"Debate has converged with probability {convergence_probability:.2f}")
+
+            previous_score = current_score
+            round_num += 1
+
         # Final synthesis by integrating the best hypothesis
         final_analysis = self._synthesize_final_analysis(query, best_hypothesis, best_score)
         print(f"Debate complete. Final analysis produced with confidence score: {final_analysis.get('confidence_score', 0)}")
 
         return final_analysis
+
+    def _evaluate_query_complexity(self, query: str, concepts: List[str]) -> float:
+        """
+        Evaluate query complexity to determine debate parameters
+        Returns a score from 0.5 (simple) to 2.0 (very complex)
+        """
+        complexity_factors = {
+            "query_length": min(1.0, len(query.split()) / 50),
+            "concept_count": min(1.0, len(concepts) / 20),
+            "interdisciplinary": self._assess_interdisciplinary(query, concepts),
+            "technical_terms": self._count_technical_terms(query) / 10
+        }
+
+        # Calculate weighted complexity score
+        weights = {
+            "query_length": 0.1,
+            "concept_count": 0.3,
+            "interdisciplinary": 0.4,
+            "technical_terms": 0.2
+        }
+
+        complexity = sum(score * weights[factor] for factor, score in complexity_factors.items())
+        # Scale between 0.5 and 2.0
+        scaled_complexity = 0.5 + (complexity * 1.5)
+
+        return min(2.0, scaled_complexity)
+
+    def _assess_interdisciplinary(self, query: str, concepts: List[str]) -> float:
+        """Assess interdisciplinary nature of the query"""
+        domains = {
+            "molecular": ["gene", "protein", "enzyme", "transcription", "binding", "receptor"],
+            "cellular": ["cell", "tissue", "organelle", "differentiation", "membrane"],
+            "systems": ["organ", "physiology", "homeostasis", "circulation", "nervous"],
+            "ecological": ["species", "environment", "population", "ecosystem"],
+            "computational": ["model", "algorithm", "simulation", "prediction"]
+        }
+
+        # Count domains represented
+        domain_count = 0
+        for domain, terms in domains.items():
+            if any(term in query.lower() for term in terms) or \
+               any(any(term in concept.lower() for term in terms) for concept in concepts):
+                domain_count += 1
+
+        # Normalize to 0-1 range
+        return min(1.0, domain_count / 3)
+
+    def _count_technical_terms(self, query: str) -> int:
+        """Count technical/specialized terms in query"""
+        technical_terms = [
+            "pathway", "signaling", "receptor", "transcription", "translation", 
+            "kinase", "phosphorylation", "methylation", "acetylation", "cytokine",
+            "microbiome", "metagenome", "epigenetic", "sequencing", "enzyme"
+        ]
+
+        return sum(1 for term in technical_terms if term in query.lower())
+
+    def _select_specialized_agents(self, query: str, concepts: List[str]) -> List[str]:
+        """Select specialized agents most relevant to the query"""
+        # Simple keyword-based agent selection
+        agent_selection_criteria = {
+            "methodology": ["method", "technique", "protocol", "experimental", "design"],
+            "domain": ["mechanism", "pathway", "biology", "system", "function"],
+            "statistics": ["statistical", "significance", "correlation", "causation", "evidence"],
+            "translational": ["clinical", "therapy", "patient", "treatment", "disease"],
+            "evolution": ["evolutionary", "conserved", "selection", "adaptation", "phylogeny"]
+        }
+
+        selected = []
+        for agent_key, keywords in agent_selection_criteria.items():
+            if any(kw in query.lower() for kw in keywords) or \
+               any(any(kw in concept.lower() for kw in keywords) for concept in concepts):
+                selected.append(agent_key)
+
+        # Limit to at most 2 specialized agents for efficiency
+        if len(selected) > 2:
+            return selected[:2]
+        return selected
 
     def _generate_initial_hypothesis(self, query: str, concepts: List[str]) -> Dict:
         """Generate initial hypothesis from the scientist agent"""
@@ -112,9 +267,85 @@ class DebateOrchestrator:
 
         return self.scientist.generate_hypothesis(context)
 
-    def _generate_critique(self, hypothesis: Dict) -> Dict:
-        """Generate critique from the critic agent"""
-        return self.critic.review_hypothesis(hypothesis)
+    def _generate_critique(self, hypothesis: Dict, selected_specialists: List[str] = None) -> Dict:
+        """Generate critique from the critic agent with specialist focus areas"""
+        critique_context = hypothesis.copy()
+
+        # Add specialized focus areas if specialists are selected
+        if selected_specialists:
+            critique_context["focus_areas"] = [
+                self.specialized_agents[specialist]["description"]
+                for specialist in selected_specialists
+            ]
+
+        return self.critic.review_hypothesis(critique_context)
+
+    def _generate_specialist_contribution(self, specialist_key: str, 
+                                        hypothesis: Dict, critique: Dict, 
+                                        query: str) -> Dict:
+        """Generate specialized contribution from a domain expert agent"""
+        specialist_role = self.specialized_agents[specialist_key]["role"]
+        specialist_desc = self.specialized_agents[specialist_key]["description"]
+
+        prompt = f"""
+        You are a {specialist_role} who {specialist_desc}.
+        Analyze this scientific hypothesis and related critique from your specialist perspective:
+
+        Original query: {query}
+
+        Hypothesis: {json.dumps(hypothesis, indent=2)}
+
+        Critique: {json.dumps(critique, indent=2)}
+
+        Provide specialized insights from your unique perspective that could strengthen the hypothesis.
+
+        Format your response as a JSON object with these fields:
+        - specialist_perspective: Your overall assessment
+        - key_insights: List of specialist insights
+        - suggested_improvements: Specific suggested modifications
+        - relevant_methodologies: Methodologies relevant to your specialty
+        - confidence_assessment: How confident you are in the hypothesis from your specialist view (0-1)
+        """
+
+        response = self.llm_manager.generate_response(prompt, "anthropic", "json")
+
+        # Handle string or dict response
+        if isinstance(response, str):
+            try:
+                return json.loads(response)
+            except json.JSONDecodeError:
+                return {"specialist_perspective": response, "key_insights": []}
+
+        return response
+
+    def _integrate_specialist_input(self, hypothesis: Dict, specialist_input: Dict) -> Dict:
+        """Integrate specialist contributions into the hypothesis"""
+        # Deep copy of hypothesis to avoid modifying the original
+        enhanced = hypothesis.copy()
+
+        # Add specialist insights if available
+        if "key_insights" in specialist_input and specialist_input["key_insights"]:
+            if "expanded_mechanisms" not in enhanced:
+                enhanced["expanded_mechanisms"] = {}
+
+            if "specialist_insights" not in enhanced["expanded_mechanisms"]:
+                enhanced["expanded_mechanisms"]["specialist_insights"] = []
+
+            enhanced["expanded_mechanisms"]["specialist_insights"].extend(
+                specialist_input["key_insights"]
+            )
+
+        # Add methodological improvements if available
+        if "suggested_improvements" in specialist_input and specialist_input["suggested_improvements"]:
+            if "methodological_improvements" not in enhanced:
+                enhanced["methodological_improvements"] = []
+
+            if isinstance(specialist_input["suggested_improvements"], list):
+                enhanced["methodological_improvements"].extend(specialist_input["suggested_improvements"])
+            else:
+                enhanced["methodological_improvements"].append(specialist_input["suggested_improvements"])
+
+        return enhanced
 
     def _refine_hypothesis(self, hypothesis: Dict, critique: Dict) -> Dict:
         """Refine hypothesis based on critique"""
