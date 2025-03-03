@@ -32,8 +32,6 @@ def main_page():
         st.session_state.analysis_stage = 0
     if 'thinking_mode' not in st.session_state:
         st.session_state.thinking_mode = "high"
-    if 'use_elo_evaluation' not in st.session_state:
-        st.session_state.use_elo_evaluation = False
 
     # Add controls in sidebar
     with st.sidebar:
@@ -63,26 +61,6 @@ def main_page():
             This approach mimics scientific discourse for stronger analyses.
             """)
 
-            # Add Elo evaluation option (only when debate is selected)
-            use_elo = st.checkbox(
-                "Use Elo-based hypothesis evaluation", 
-                value=st.session_state.use_elo_evaluation,
-                help="Enable comparative hypothesis scoring with Elo ratings (inspired by Google's Coscientist)"
-            )
-
-            st.session_state.use_elo_evaluation = use_elo
-
-            if use_elo:
-                st.info("""
-                **Elo-Based Hypothesis Evaluation**
-
-                Hypotheses compete in direct comparisons and are assigned Elo ratings:
-                - Higher ratings indicate stronger scientific explanations
-                - Final tournament determines the most robust hypothesis
-                - Similar to Google's Coscientist approach
-
-                This method enables more objective evaluation through direct competition.
-                """)
 
         # Novelty slider
         novelty_score = st.slider(
@@ -170,11 +148,6 @@ def main_page():
     sci_agent = SciAgent(high_demand_mode=st.session_state.high_demand_mode)
     # Update the thinking mode to match the radio selection
     sci_agent.set_thinking_mode(st.session_state.thinking_mode)
-    # Configure Elo evaluation if enabled
-    if st.session_state.use_debate and st.session_state.use_elo_evaluation:
-        sci_agent.enable_elo_evaluation(True)
-    else:
-        sci_agent.enable_elo_evaluation(False)
 
     pubtator = PubTatorClient()
 
@@ -212,10 +185,6 @@ def main_page():
                 "Scientific rebuttal by Scientist Agent (Round 3)...",
                 "Synthesizing final analysis from debate..."
             ]
-
-            # Add Elo tournament stage if enabled
-            if st.session_state.use_elo_evaluation:
-                stages.insert(-1, "Running Elo-based hypothesis tournament...")
         else:
             stages = [
                 "Initiating scientific analysis with extended thinking...",
@@ -260,31 +229,17 @@ def main_page():
 
             # Display a message that explains what's happening
             if st.session_state.use_debate:
-                debate_info = """
+                st.markdown("""
                 ### Multi-Agent Scientific Debate in Progress
 
                 The system is currently running a scientific debate between multiple specialized AI agents:
                 - **Scientist Agent:** Generates core hypotheses and mechanisms
                 - **Critic Agent:** Identifies limitations and challenges assumptions
                 - **Expander Agent:** Refines and improves on initial ideas
-                """
 
-                if st.session_state.use_elo_evaluation:
-                    debate_info += """
-
-                    Hypotheses are being evaluated using an **Elo-based rating system**:
-                    - Each hypothesis is assigned an Elo rating (like in chess)
-                    - Hypotheses compete in head-to-head comparisons
-                    - Winners gain rating points, losers lose points
-                    - Final tournament determines the strongest scientific explanation
-                    """
-
-                debate_info += """
                 Each agent contributes to improving the scientific analysis through multiple debate rounds.
                 This process mimics scientific discourse and improves the quality of the final analysis.
-                """
-
-                st.markdown(debate_info)
+                """)
             else:
                 st.markdown("""
                 ### Extended Scientific Analysis in Progress
@@ -339,8 +294,6 @@ def main_page():
                     st.session_state.analysis_stage = 12
                 elif entry['action'] == 'rebuttal':
                     st.session_state.analysis_stage = 13
-                elif entry['action'] == 'final_evaluation':
-                    st.session_state.analysis_stage = 14
 
             # Pass the callback to sci_agent
             sci_agent.set_debate_callback(update_debate_callback)
@@ -352,8 +305,7 @@ def main_page():
                 # Run the debate-driven analysis
                 analysis = sci_agent.analyze_mechanism_with_debate(
                     query,
-                    novelty_score=novelty_score,
-                    use_elo=st.session_state.use_elo_evaluation
+                    novelty_score=novelty_score
                 )
 
                 # Final synthesis stage
@@ -413,30 +365,6 @@ def main_page():
         with col2:
             st.metric("Novelty Level", f"{novelty_score:.2f}")
 
-        # Display Elo rating if available
-        if "elo_evaluation" in analysis and st.session_state.use_elo_evaluation:
-            st.subheader("Hypothesis Evaluation")
-
-            elo_col1, elo_col2 = st.columns(2)
-            with elo_col1:
-                st.metric(
-                    "Best Hypothesis Elo Rating", 
-                    f"{analysis['elo_evaluation']['best_hypothesis_rating']:.0f}",
-                    help="Higher Elo ratings indicate stronger scientific explanations"
-                )
-            with elo_col2:
-                # Display number of hypotheses compared
-                if "leaderboard" in analysis["elo_evaluation"]:
-                    st.metric("Hypotheses Evaluated", f"{len(analysis['elo_evaluation']['leaderboard'])}")
-
-            # Show Elo leaderboard
-            with st.expander("View Hypothesis Leaderboard", expanded=False):
-                st.markdown("### Hypothesis Elo Leaderboard")
-                st.markdown("Hypotheses ranked by Elo rating (similar to chess ratings):")
-
-                leaderboard_data = analysis["elo_evaluation"]["leaderboard"]
-                for item in leaderboard_data:
-                    st.markdown(f"**{item['rank']}.** Hypothesis #{item['hypothesis_id'][:8]} - **{item['rating']:.0f}** Elo")
 
         # Display pathways
         st.subheader("Key Molecular Pathways")
@@ -503,13 +431,6 @@ def main_page():
             with st.expander("View Debate History", expanded=False):
                 st.markdown("### Multi-Agent Scientific Debate")
 
-                if st.session_state.use_elo_evaluation:
-                    st.markdown("""
-                    This analysis was refined through multiple rounds of scientific debate, with hypotheses evaluated using an Elo-based rating system similar to Google's Coscientist approach.
-                    """)
-                else:
-                    st.markdown("This analysis was refined through multiple rounds of scientific debate:")
-
                 for idx, entry in enumerate(st.session_state.debate_history):
                     st.markdown(f"**Step {idx+1}: {entry['agent']} - {entry['action']}**")
 
@@ -534,12 +455,6 @@ def main_page():
                         if 'hypothesis' in entry['content']:
                             st.markdown(f"*Main Hypothesis:* {entry['content']['hypothesis']}")
 
-                    elif entry['action'] == 'final_evaluation' and st.session_state.use_elo_evaluation:
-                        if 'rankings' in entry['content']:
-                            st.markdown("*Elo Tournament Results:*")
-                            for rank in entry['content']['rankings'][:3]:  # Top 3
-                                st.markdown(f"- Rank {rank['rank']}: Hypothesis #{rank['hypothesis_id'][:8]} (Rating: {rank['rating']:.0f})")
-
                     # Add timestamp
                     st.caption(f"Timestamp: {entry['timestamp']}")
                     st.markdown("---")
@@ -558,9 +473,4 @@ def main_page():
             thinking_tokens = "0"
 
         thinking_mode_text = "extended thinking" if st.session_state.thinking_mode != "none" else "standard processing"
-
-        # Add Elo evaluation information if used
-        if st.session_state.use_elo_evaluation and st.session_state.use_debate:
-            st.caption(f"Analysis powered by Claude 3.7 Sonnet's {thinking_mode_text} capabilities ({output_tokens} output tokens, {thinking_tokens} thinking tokens) with Elo-based hypothesis evaluation inspired by Google's Coscientist")
-        else:
-            st.caption(f"Analysis powered by Claude 3.7 Sonnet's {thinking_mode_text} capabilities ({output_tokens} output tokens, {thinking_tokens} thinking tokens)")
+        st.caption(f"Analysis powered by Claude 3.7 Sonnet's {thinking_mode_text} capabilities ({output_tokens} output tokens, {thinking_tokens} thinking tokens)")

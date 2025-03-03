@@ -1,22 +1,18 @@
 """
-Debate orchestration module for multi-agent scientific debate.
-Enhanced with Elo-based hypothesis evaluation system.
+Debate Orchestrator for scientific hypothesis refinement
+Based on the interactive debate methodology from Google's AI Coscientist
 """
-
-import datetime
-import json
-import re
-from typing import Dict, List, Optional, Callable, Any
-import random
-
-from .agents import OntologistAgent, ScientistAgent, ExpanderAgent, CriticAgent
+from typing import Dict, List, Optional, Callable
 from .llm_manager import LLMManager
-from .elo_evaluator import HypothesisEloManager
+from .agents import OntologistAgent, ScientistAgent, ExpanderAgent, CriticAgent
+import json
+import datetime
+import re
 
 class DebateOrchestrator:
     """
-    Orchestrates multi-agent debate for scientific hypothesis generation and refinement.
-    Enhanced with Elo-style hypothesis comparison and tournament evaluation.
+    Orchestrates a multi-agent debate to refine scientific hypotheses
+    Implements the "generate, debate, and evolve" methodology
     """
     def __init__(self, llm_manager: LLMManager):
         self.llm_manager = llm_manager
@@ -50,55 +46,37 @@ class DebateOrchestrator:
             }
         }
 
-        # Initialize Elo-based hypothesis evaluator
-        self.elo_evaluator = HypothesisEloManager(llm_manager)
-
         self.debate_history = []
         self.base_debate_rounds = 3
         self.update_callback = None  # Callback for real-time updates
         self.convergence_threshold = 0.8  # Threshold for debate convergence
         self.max_debate_rounds = 5  # Maximum number of rounds regardless of convergence
-        self.use_elo_evaluation = False  # Whether to use Elo-based evaluation
 
     def set_update_callback(self, callback: Callable):
         """
-        Set callback function for real-time debate updates
+        Set a callback function to be called when there are new debate updates
+
         Args:
-            callback: A function that takes a debate history entry and processes it
+            callback: A function that takes a debate entry dictionary as input
         """
         self.update_callback = callback
+        print("Debate update callback registered")
 
-    def enable_elo_evaluation(self, enabled: bool = True):
-        """Enable or disable Elo-based hypothesis evaluation"""
-        self.use_elo_evaluation = enabled
-        print(f"Elo-based hypothesis evaluation {'enabled' if enabled else 'disabled'}")
-
-    def orchestrate_debate(self, query: str, concepts: List[str], 
-                         novelty_score: float = 0.5,
-                         use_elo: bool = None) -> Dict:
+    def orchestrate_debate(self, query: str, concepts: List[str], novelty_score: float = 0.5) -> Dict:
         """
-        Orchestrate multi-agent debate to generate and refine scientific hypotheses
+        Run a multi-agent debate to refine a scientific hypothesis
+
         Args:
-            query: Scientific question or topic
-            concepts: List of relevant scientific concepts
-            novelty_score: Target novelty level (0=established, 1=novel)
-            use_elo: Whether to use Elo-based evaluation (overrides instance setting)
+            query: The scientific question to analyze
+            concepts: Key concepts identified in the query
+            novelty_score: Target novelty level (0-1)
+
         Returns:
-            Final analysis with debate history
+            A refined scientific analysis after multiple debate rounds
         """
-        if use_elo is not None:
-            self.use_elo_evaluation = use_elo
-
-        # Reset debate history
-        self.debate_history = []
-
-        # Reset hypothesis container for this debate session
-        debate_hypotheses = []
-
-        print(f"Starting scientific debate orchestration for: {query}")
+        print(f"Starting scientific debate on: {query}")
         print(f"With concepts: {concepts}")
         print(f"Targeting novelty level: {novelty_score}")
-        print(f"Using Elo evaluation: {self.use_elo_evaluation}")
 
         # Determine query complexity to set adaptive debate parameters
         query_complexity = self._evaluate_query_complexity(query, concepts)
@@ -117,14 +95,8 @@ class DebateOrchestrator:
 
         # Initial hypothesis generation by scientist
         hypothesis = self._generate_initial_hypothesis(query, concepts)
-        debate_hypotheses.append(hypothesis.copy())  # Store initial hypothesis
 
-        # Evaluate initial hypothesis
-        if self.use_elo_evaluation:
-            # Register initial hypothesis with Elo system
-            self.elo_evaluator.register_hypothesis(hypothesis)
-
-        # Standard evaluation for backward compatibility
+        # Track the best hypothesis and its score
         best_hypothesis = hypothesis
         best_score = self._evaluate_hypothesis(hypothesis)
 
@@ -144,9 +116,8 @@ class DebateOrchestrator:
             self._add_to_debate_history("CriticAgent", "critique", critique)
             print(f"Critic has challenged the hypothesis with {len(critique.get('evaluation', {}).get('limitations', []))} limitations")
 
-            # Expander refines the hypothesis
+            # Expander refines based on critique
             refined_hypothesis = self._refine_hypothesis(hypothesis, critique)
-            debate_hypotheses.append(refined_hypothesis.copy())  # Store refined hypothesis
             self._add_to_debate_history("ExpanderAgent", "refinement", refined_hypothesis)
             print(f"Expander has refined the hypothesis with {len(refined_hypothesis.get('expanded_mechanisms', {}).get('additional_pathways', []))} new pathways")
 
@@ -171,33 +142,21 @@ class DebateOrchestrator:
 
             # Scientist rebuts and further improves
             rebuttal = self._generate_rebuttal(refined_hypothesis, critique)
-            debate_hypotheses.append(rebuttal.copy())  # Store rebuttal hypothesis
             self._add_to_debate_history("ScientistAgent", "rebuttal", rebuttal)
+            print(f"Scientist has provided a rebuttal and improvements")
 
-            # Evaluate new hypothesis
-            current_score = self._evaluate_hypothesis(rebuttal)
-            print(f"Rebuttal hypothesis evaluated with score: {current_score}")
+            # Create a merged hypothesis from the debate
+            hypothesis = self._merge_hypotheses(refined_hypothesis, rebuttal)
 
-            # If using Elo, also compare with previous best hypothesis
-            if self.use_elo_evaluation and best_hypothesis is not None:
-                # Compare current hypothesis with previous best
-                elo_result = self.elo_evaluator.compare_hypotheses(
-                    rebuttal, best_hypothesis, query
-                )
+            # Evaluate the new hypothesis
+            current_score = self._evaluate_hypothesis(hypothesis)
+            print(f"Round {round_num} hypothesis score: {current_score}")
 
-                print(f"Elo comparison - New vs Best: {elo_result['outcome_score']} (1.0 = new wins)")
-
-                # Update best hypothesis based on Elo winner
-                if elo_result['winner_id'] == self.elo_evaluator.register_hypothesis(rebuttal):
-                    best_hypothesis = rebuttal
-                    best_score = current_score
-                    print(f"New best hypothesis based on Elo! Score: {best_score}")
-            else:
-                # Standard approach: update if score is better
-                if current_score > best_score:
-                    best_hypothesis = rebuttal
-                    best_score = current_score
-                    print(f"New best hypothesis found! Score: {best_score}")
+            # Track the best hypothesis
+            if current_score > best_score:
+                best_hypothesis = hypothesis
+                best_score = current_score
+                print(f"New best hypothesis found! Score: {best_score}")
 
             # Check for convergence (diminishing improvements)
             improvement = current_score - previous_score
@@ -210,42 +169,9 @@ class DebateOrchestrator:
             previous_score = current_score
             round_num += 1
 
-        # Final evaluation using Elo tournament if enabled and we have multiple hypotheses
-        if self.use_elo_evaluation and len(debate_hypotheses) >= 3:
-            print("\n=== Running final Elo tournament ===")
-            tournament_results = self.elo_evaluator.run_tournament(
-                debate_hypotheses, query, rounds=2
-            )
-
-            # Use tournament winner as final best hypothesis
-            best_hypothesis = tournament_results["best_hypothesis"]
-            best_score = self._evaluate_hypothesis(best_hypothesis)
-
-            print(f"Tournament complete. Best hypothesis rating: {tournament_results['best_hypothesis_rating']}")
-
-            # Add tournament results to debate history
-            self._add_to_debate_history("Tournament", "final_evaluation", {
-                "rankings": [
-                    {
-                        "rank": r["rank"],
-                        "rating": r["rating"],
-                        "hypothesis_id": r["hypothesis_id"]
-                    } for r in tournament_results["rankings"]
-                ]
-            })
-
         # Final synthesis by integrating the best hypothesis
         final_analysis = self._synthesize_final_analysis(query, best_hypothesis, best_score)
         print(f"Debate complete. Final analysis produced with confidence score: {final_analysis.get('confidence_score', 0)}")
-
-        # Add Elo leaderboard if enabled
-        if self.use_elo_evaluation:
-            final_analysis["elo_evaluation"] = {
-                "leaderboard": self.elo_evaluator.get_leaderboard(),
-                "best_hypothesis_rating": self.elo_evaluator.get_hypothesis_rating(
-                    self.elo_evaluator.register_hypothesis(best_hypothesis)
-                )
-            }
 
         return final_analysis
 
@@ -329,13 +255,14 @@ class DebateOrchestrator:
 
     def _generate_initial_hypothesis(self, query: str, concepts: List[str]) -> Dict:
         """Generate initial hypothesis from the scientist agent"""
+        print("Generating initial hypothesis...")
+
+        # Create a structured context for the scientist
         context = {
-            "query": query,
-            "concepts": concepts,
-            "ontology": {
-                "primary_concepts": concepts[:min(3, len(concepts))],
-                "related_concepts": concepts[min(3, len(concepts)):]
-            }
+            "molecular_components": concepts[:10],  # Limit to prevent token overflow
+            "cellular_processes": concepts[10:20] if len(concepts) > 10 else [],
+            "regulatory_mechanisms": concepts[20:30] if len(concepts) > 20 else [],
+            "developmental_context": concepts[30:40] if len(concepts) > 30 else []
         }
 
         return self.scientist.generate_hypothesis(context)
@@ -422,11 +349,54 @@ class DebateOrchestrator:
 
     def _refine_hypothesis(self, hypothesis: Dict, critique: Dict) -> Dict:
         """Refine hypothesis based on critique"""
-        return self.expander.refine_hypothesis(hypothesis, critique)
+        # Combine hypothesis with critique for context
+        combined_context = {
+            "original_hypothesis": hypothesis,
+            "critique": critique
+        }
 
-    def _generate_rebuttal(self, hypothesis: Dict, critique: Dict) -> Dict:
+        return self.expander.expand_hypothesis(combined_context)
+
+    def _generate_rebuttal(self, refined_hypothesis: Dict, critique: Dict) -> Dict:
         """Generate rebuttal and improvements from the scientist"""
-        return self.scientist.rebut_critique(hypothesis, critique)
+        # Structure a rebuttal request
+        rebuttal_context = {
+            "refined_hypothesis": refined_hypothesis,
+            "critique": critique,
+            "rebuttal_requested": True
+        }
+
+        # Use the scientist to generate improvements
+        return self.scientist.generate_hypothesis(rebuttal_context)
+
+    def _merge_hypotheses(self, hypothesis1: Dict, hypothesis2: Dict) -> Dict:
+        """Merge two hypotheses, keeping the strongest elements of each"""
+        prompt = f"""
+        Merge these two scientific hypotheses into a unified, stronger hypothesis:
+
+        Hypothesis 1: {json.dumps(hypothesis1, indent=2)}
+
+        Hypothesis 2: {json.dumps(hypothesis2, indent=2)}
+
+        Create a unified hypothesis that:
+        1. Incorporates the strongest elements from both
+        2. Resolves any contradictions
+        3. Maintains scientific accuracy
+        4. Increases explanatory power
+
+        Format your response as a structured JSON with the same schema as the input hypotheses.
+        """
+
+        merged = self.llm_manager.generate_response(prompt, "anthropic", "json")
+        if isinstance(merged, str):
+            try:
+                merged = json.loads(merged)
+            except:
+                print("Failed to parse merged hypothesis JSON")
+                # Return a combination of both as a fallback
+                merged = {**hypothesis1, **hypothesis2}
+
+        return merged
 
     def _evaluate_hypothesis(self, hypothesis: Dict) -> float:
         """Evaluate the hypothesis and return a score from 0-1"""
@@ -537,17 +507,3 @@ class DebateOrchestrator:
     def get_debate_history(self) -> List[Dict]:
         """Get the debate history"""
         return self.debate_history
-
-    def get_elo_ratings(self) -> Dict[str, float]:
-        """Get current Elo ratings for all hypotheses"""
-        if not self.use_elo_evaluation:
-            return {"error": "Elo evaluation not enabled"}
-
-        return self.elo_evaluator.ratings
-
-    def get_elo_leaderboard(self, top_n: int = 10) -> List[Dict]:
-        """Get current hypothesis Elo leaderboard"""
-        if not self.use_elo_evaluation:
-            return [{"error": "Elo evaluation not enabled"}]
-
-        return self.elo_evaluator.get_leaderboard(top_n)

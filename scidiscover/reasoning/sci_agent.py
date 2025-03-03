@@ -1,6 +1,6 @@
 """
 Main SciAgent implementation following SciAgents architecture
-Enhanced with KG-COI graph reasoning and Elo-based hypothesis evaluation
+Enhanced with KG-COI graph reasoning
 """
 from typing import Dict, List, Optional, Callable
 from .llm_manager import LLMManager
@@ -13,7 +13,6 @@ class SciAgent:
     """
     Orchestrates multi-agent scientific analysis and discovery
     Based on SciAgents (Ghafarollahi & Buehler, 2024)
-    Enhanced with Elo-based hypothesis evaluation inspired by Coscientist
     """
     def __init__(self, high_demand_mode=True):
         self.llm_manager = LLMManager(high_demand_mode=high_demand_mode)
@@ -26,7 +25,6 @@ class SciAgent:
         self.high_demand_mode = high_demand_mode
         self.debate_callback = None
         self.thinking_mode = "high" if high_demand_mode else "low"
-        self.use_elo_evaluation = False
 
     def set_thinking_mode(self, mode="high"):
         """
@@ -48,20 +46,6 @@ class SciAgent:
         self.debate_callback = callback
         # Pass the callback to the debate orchestrator
         self.debate_orchestrator.set_update_callback(self.debate_callback)
-
-    def enable_elo_evaluation(self, enabled: bool = True):
-        """
-        Enable or disable Elo-based hypothesis evaluation
-
-        When enabled, hypotheses are evaluated through direct pairwise comparisons
-        and assigned Elo ratings similar to Google's Coscientist approach
-
-        Args:
-            enabled: Whether to enable Elo-based evaluation
-        """
-        self.use_elo_evaluation = enabled
-        self.debate_orchestrator.enable_elo_evaluation(enabled)
-        print(f"Elo-based hypothesis evaluation {'enabled' if enabled else 'disabled'}")
 
     def analyze_mechanism(self, query: str, novelty_score: float = 0.5, include_established: bool = True) -> Dict:
         """
@@ -130,16 +114,14 @@ class SciAgent:
             # Return a default response in case of any error
             return self.llm_manager._generate_default_response(query)
 
-    def analyze_mechanism_with_debate(self, query: str, novelty_score: float = 0.5, use_elo: bool = None) -> Dict:
+    def analyze_mechanism_with_debate(self, query: str, novelty_score: float = 0.5) -> Dict:
         """
         Perform scientific analysis using the debate-driven methodology
         This implements the "generate, debate, and evolve" approach from Coscientist
-        Enhanced with optional Elo-based hypothesis evaluation
 
         Args:
             query: Scientific query to analyze
             novelty_score: Target novelty level (0: established, 1: novel)
-            use_elo: Whether to use Elo-based hypothesis evaluation (overrides instance setting)
 
         Returns:
             A comprehensive scientific analysis refined through multi-agent debate
@@ -148,7 +130,6 @@ class SciAgent:
             print(f"Starting debate-driven analysis of query: {query}")
             print(f"Novelty score: {novelty_score}")
             print(f"Using thinking mode: {self.thinking_mode.title()}")
-            print(f"Using Elo evaluation: {self.use_elo_evaluation if use_elo is None else use_elo}")
 
             # Step 1: Extract concepts
             concepts = []
@@ -176,12 +157,11 @@ class SciAgent:
 
             print(f"Debate analysis with concepts: {concepts}")
 
-            # Step 2: Run the multi-agent debate with optional Elo evaluation
+            # Step 2: Run the multi-agent debate
             debate_result = self.debate_orchestrator.orchestrate_debate(
                 query,
                 concepts,
-                novelty_score=novelty_score,
-                use_elo=use_elo
+                novelty_score=novelty_score
             )
 
             # Step 3: Optional - Validate with knowledge graph if needed
@@ -193,18 +173,3 @@ class SciAgent:
         except Exception as e:
             print(f"Error in debate-driven analysis: {str(e)}")
             return self.llm_manager._generate_default_response(query)
-
-    def get_elo_leaderboard(self, top_n: int = 10) -> List[Dict]:
-        """
-        Get the current Elo ratings leaderboard for hypotheses
-
-        Args:
-            top_n: Number of top hypotheses to return
-
-        Returns:
-            Leaderboard with rankings and Elo ratings
-        """
-        if not self.use_elo_evaluation:
-            return [{"error": "Elo evaluation not enabled"}]
-
-        return self.debate_orchestrator.get_elo_leaderboard(top_n)
