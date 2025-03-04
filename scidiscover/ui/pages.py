@@ -484,11 +484,11 @@ def main_page():
         thinking_mode_text = "extended thinking" if st.session_state.thinking_mode != "none" else "standard processing"
         st.caption(f"Analysis powered by Claude 3.7 Sonnet's {thinking_mode_text} capabilities ({output_tokens} output tokens, {thinking_tokens} thinking tokens)")
 
-        # Add ArdeshirLab attribution
-        st.markdown("---")
-        st.markdown("""
-        <div style="text-align: center; color: #666; padding: 10px; font-size: 0.8em;">
-        Developed by <b>ArdeshirLab</b><br>
-        Dr. Amir Ardeshir, D.V.M., M.P.V.M., Ph.D.
-        </div>
-        """, unsafe_allow_html=True)
+    # Add ArdeshirLab attribution (always visible at the bottom)
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: #666; padding: 10px; font-size: 0.8em;">
+    Developed by <b>ArdeshirLab</b><br>
+    Dr. Amir Ardeshir, D.V.M., M.P.V.M., Ph.D.
+    </div>
+    """, unsafe_allow_html=True)
