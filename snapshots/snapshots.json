@@ -1,0 +1,12 @@
+{
+  "20250304001048_scidiscover_rocks!": {
+    "id": "20250304001048_scidiscover_rocks!",
+    "name": "SciDiscover rocks!",
+    "description": "Snapshot of SciDiscover before any further developments",
+    "created_at": "2025-03-04T00:10:48.151143",
+    "files": [
+      "main.py",
+      ".streamlit/config.toml"
+    ]
+  }
+}
