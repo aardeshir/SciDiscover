@@ -488,7 +488,6 @@ def main_page():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 10px; font-size: 0.8em;">
-    Developed by <b>ArdeshirLab</b><br>
-    Dr. Amir Ardeshir, D.V.M., M.P.V.M., Ph.D.
+    Developed by <b>ArdeshirLab</b> (ardeshirlab.com)
     </div>
     """, unsafe_allow_html=True)
