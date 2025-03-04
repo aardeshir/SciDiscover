@@ -133,22 +133,6 @@ def main_page():
             - Fastest processing time
             """)
 
-        # Add information about extended thinking capabilities
-        st.markdown("---")
-        with st.expander("Extended Thinking", expanded=True):
-            st.markdown("""
-            **Enhanced with Claude 3.7 Sonnet's Extended Thinking**
-
-            Analysis now powered by:
-            - {output_tokens}K token output capacity
-            - {thinking_tokens} token thinking budget
-            - {level} scientific analysis
-            """.format(
-                output_tokens="80" if thinking_mode == "High-Demand" else ("64" if thinking_mode == "Low-Demand" else "32"),
-                thinking_tokens="64K" if thinking_mode == "High-Demand" else ("32K" if thinking_mode == "Low-Demand" else "0"),
-                level="Deep multi-step" if thinking_mode != "None" else "Standard"
-            ))
-
     # Initialize managers with user's thinking mode preference
     sci_agent = SciAgent(high_demand_mode=st.session_state.high_demand_mode)
     # Update the thinking mode to match the radio selection
