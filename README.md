@@ -1,6 +1,6 @@
 # SciDiscover
 
-[![License](https://img.shields.io/badge/License-To_Be_Determined-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 ## An Advanced Scientific Discovery Platform
 
@@ -121,7 +121,7 @@ python scripts/create_snapshot.py show "My Research Milestone"
 
 ## License
 
-This project is licensed under the [LICENSE TO BE DETERMINED] - see the LICENSE file for details.
+This project is licensed under the Apache License 2.0. See the LICENSE file for details.
 
 ## Acknowledgments
 
