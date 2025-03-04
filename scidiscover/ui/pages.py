@@ -488,6 +488,6 @@ def main_page():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 10px; font-size: 0.8em;">
-    Developed by <b>ArdeshirLab</b> (ardeshirlab.com)
+    Developed by <b>ArdeshirLab</b> (<a href="https://ardeshirlab.com" target="_blank" style="color: #666; text-decoration: underline;">ardeshirlab.com</a>)
     </div>
     """, unsafe_allow_html=True)
