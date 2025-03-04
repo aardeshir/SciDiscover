@@ -1,6 +1,7 @@
 import streamlit as st
 from ..reasoning.sci_agent import SciAgent
 from ..knowledge.pubtator import PubTatorClient
+import time
 
 def main_page():
     st.title("SciDiscover")
@@ -32,6 +33,10 @@ def main_page():
         st.session_state.analysis_stage = 0
     if 'thinking_mode' not in st.session_state:
         st.session_state.thinking_mode = "high"
+    if 'analysis_start_time' not in st.session_state:
+        st.session_state.analysis_start_time = None
+    if 'analysis_elapsed_time' not in st.session_state:
+        st.session_state.analysis_elapsed_time = None
 
     # Add controls in sidebar
     with st.sidebar:
@@ -200,6 +205,11 @@ def main_page():
         current_stage = min(st.session_state.analysis_stage, len(stages) - 1)
         progress_percent = current_stage / (len(stages) - 1)
 
+        # Calculate elapsed time so far
+        current_elapsed = 0
+        if st.session_state.analysis_start_time:
+            current_elapsed = int(time.time() - st.session_state.analysis_start_time)
+
         with analysis_progress_container.container():
             st.subheader("🔄 Scientific Analysis in Progress")
 
@@ -208,6 +218,9 @@ def main_page():
 
             # Current stage description
             st.info(f"**Current Stage:** {stages[current_stage]}")
+
+            # Display elapsed time
+            st.caption(f"Time elapsed: {current_elapsed} seconds")
 
             # Estimated time remaining based on thinking mode
             if st.session_state.use_debate:
@@ -254,10 +267,14 @@ def main_page():
 
     # Handle the analysis process
     if analyze_clicked and query:
+        # Record start time when Analyze is clicked
+        st.session_state.analysis_start_time = time.time()
+
         st.session_state.current_query = query
         st.session_state.analysis_running = True
         st.session_state.analysis_stage = 0  # Reset progress
         st.session_state.live_debate_updates = []  # Reset updates
+        st.session_state.analysis_elapsed_time = None  # Reset elapsed time
 
         # Initialize the progress display
         with analysis_progress_container.container():
@@ -267,6 +284,7 @@ def main_page():
                 st.subheader("🔄 Performing deep scientific analysis...")
             st.info("Initializing analysis, please wait...")
             st.progress(0)
+            st.caption(f"Time elapsed: 0 seconds")
 
         try:
             # Register the callback to capture debate history but not for UI updates
@@ -331,6 +349,10 @@ def main_page():
                 # Reset debate history
                 st.session_state.debate_history = None
 
+            # Calculate and store elapsed time
+            if st.session_state.analysis_start_time:
+                st.session_state.analysis_elapsed_time = int(time.time() - st.session_state.analysis_start_time)
+
             # Store results and clear status displays
             st.session_state.analysis_results = analysis
             st.session_state.analysis_running = False
@@ -357,13 +379,16 @@ def main_page():
         # Display Primary Analysis
         st.header("Molecular Mechanism Analysis")
 
-        # Show confidence score
+        # Show confidence score and elapsed time
         confidence = analysis.get("confidence_score", 0)
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Analysis Confidence Score", f"{confidence:.2f}")
         with col2:
             st.metric("Novelty Level", f"{novelty_score:.2f}")
+        with col3:
+            if st.session_state.analysis_elapsed_time is not None:
+                st.metric("Analysis Time", f"{st.session_state.analysis_elapsed_time} seconds")
 
 
         # Display pathways
