@@ -45,12 +45,12 @@ def main_page():
         # Analysis method selection
         analysis_method = st.radio(
             "Analysis Method",
-            ["Standard Analysis", "Debate-Driven Analysis (Coscientist-style)"],
+            ["Standard Analysis", "Debate-Driven Analysis"],
             index=0,
             help="Choose between standard analysis or multi-agent debate approach"
         )
 
-        st.session_state.use_debate = analysis_method == "Debate-Driven Analysis (Coscientist-style)"
+        st.session_state.use_debate = analysis_method == "Debate-Driven Analysis"
 
         # If debate is selected, show explanation
         if st.session_state.use_debate:
@@ -135,7 +135,7 @@ def main_page():
 
         # Add information about extended thinking capabilities
         st.markdown("---")
-        with st.expander("🧠 Extended Thinking", expanded=True):
+        with st.expander("Extended Thinking", expanded=True):
             st.markdown("""
             **Enhanced with Claude 3.7 Sonnet's Extended Thinking**
 
