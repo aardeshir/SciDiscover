@@ -478,7 +478,7 @@ def main_page():
             output_tokens = "64K"
             thinking_tokens = "32K"
         else:  # none
-            output_tokens = "32K" 
+            output_tokens = "32K"
             thinking_tokens = "0"
 
         thinking_mode_text = "extended thinking" if st.session_state.thinking_mode != "none" else "standard processing"
@@ -488,6 +488,6 @@ def main_page():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 10px; font-size: 0.8em;">
-    Developed by <b>ArdeshirLab</b> (<a href="https://ardeshirlab.com" target="_blank" style="color: #666; text-decoration: underline;">ardeshirlab.com</a>)
+    Developed by <b>ArdeshirLab</b> (<a href="https://ardeshirlab.org" target="_blank" style="color: #666; text-decoration: underline;">ardeshirlab.org</a>)
     </div>
     """, unsafe_allow_html=True)
