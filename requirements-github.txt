@@ -1,0 +1,17 @@
+# Core Dependencies
+anthropic>=0.51.0
+networkx>=3.4.2
+openai>=1.65.2
+pandas>=2.2.3
+plotly>=6.0.0
+streamlit>=1.42.2
+
+# Scientific Computing
+numpy>=1.26.0  # Required by pandas and other scientific packages
+
+# Graph Visualization
+graphviz>=0.20.1  # For knowledge graph visualization
+
+# Development Tools
+python-dotenv>=1.0.0  # For environment variable management
+requests>=2.31.0  # For API calls
