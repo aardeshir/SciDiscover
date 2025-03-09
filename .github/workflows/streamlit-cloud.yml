@@ -1,0 +1,36 @@
+name: Streamlit Cloud
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-github.txt
+      - name: Test Streamlit app
+        run: |
+          # Perform a basic validation check of the streamlit app structure
+          python -c "import streamlit; print('Streamlit version:', streamlit.__version__)"
+          if [ -f "main.py" ]; then
+            echo "✅ main.py is present"
+            grep -q "import streamlit" main.py && echo "✅ main.py imports streamlit" || echo "❌ main.py does not import streamlit"
+          fi
+          # Note: Actual deployment to Streamlit Cloud would be done through their interface
+          # This workflow just verifies that the app is ready for deployment

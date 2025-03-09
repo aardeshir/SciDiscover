@@ -13,5 +13,4 @@ numpy>=1.26.0  # Required by pandas and other scientific packages
 graphviz>=0.20.1  # For knowledge graph visualization
 
 # Development Tools
-python-dotenv>=1.0.0  # For environment variable management
 requests>=2.31.0  # For API calls
