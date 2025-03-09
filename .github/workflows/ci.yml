@@ -1,0 +1,64 @@
+name: SciDiscover CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.11]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements-github.txt ]; then pip install -r requirements-github.txt; fi
+        if [ -f requirements_dev.txt ]; then pip install -r requirements_dev.txt; fi
+    - name: Check formatting
+      run: |
+        if command -v black &> /dev/null; then
+          black --check .
+        else
+          echo "Black not installed, skipping format check"
+        fi
+    - name: Lint with flake8
+      run: |
+        if command -v flake8 &> /dev/null; then
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        else
+          echo "Flake8 not installed, skipping lint"
+        fi
+    - name: Test with pytest
+      run: |
+        if command -v pytest &> /dev/null; then
+          pytest
+        else
+          echo "Pytest not installed, skipping tests"
+        fi
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Build Docker image
+      run: |
+        docker build -t scidiscover:${GITHUB_SHA::8} .
+        # Add deployment steps here as needed
+      # Add deployment credentials and steps as needed
+      # This will vary based on your hosting solution
