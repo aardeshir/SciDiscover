@@ -6,8 +6,8 @@ Thank you for your interest in contributing to SciDiscover! This document outlin
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/scidiscover.git
-   cd scidiscover
+   git clone https://github.com/aardeshir/SciDiscover.git
+   cd SciDiscover
    ```
 
 2. **Create a virtual environment**

@@ -10,5 +10,5 @@ secondaryBackgroundColor = "#F5F7F9"
 textColor = "#262730"
 font = "sans serif"
 
-[deprecation]
-showPyplotGlobalUse = false
+[browser]
+gatherUsageStats = false
