@@ -71,15 +71,6 @@ def main():
 
     # Run the main application
     main_page()
-    
-    # Add a small footer with the disclaimer link
-    footer_html = """
-    <div style="position: fixed; bottom: 10px; right: 10px; font-size: 0.8em; opacity: 0.7;">
-        Developed by <a href="https://ardeshirlab.org" target="_blank">ArdeshirLab</a> | 
-        <a href="https://github.com/ardeshirlab/scidiscover/blob/main/DISCLAIMER.md" target="_blank">Disclaimer</a>
-    </div>
-    """
-    st.markdown(footer_html, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
