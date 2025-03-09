@@ -22,7 +22,12 @@ def load_env_from_file():
 
 def render_disclaimer():
     """Render a small disclaimer link in the footer"""
-    st.markdown("<a href='https://github.com/ardeshirlab/scidiscover/blob/main/DISCLAIMER.md' target='_blank'>Disclaimer</a>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='position: fixed; bottom: 10px; right: 10px; z-index: 1000; font-size: 0.8rem; opacity: 0.7;'>
+        Developed by <a href='https://ardeshirlab.org' target='_blank'>ArdeshirLab</a> | 
+        <a href='https://github.com/aardeshir/SciDiscover/blob/main/DISCLAIMER.md' target='_blank'>Disclaimer</a>
+    </div>
+    """, unsafe_allow_html=True)
 
 def main():
     # Load environment variables from .env file
@@ -71,6 +76,9 @@ def main():
 
     # Run the main application
     main_page()
+    
+    # Render disclaimer in the footer
+    render_disclaimer()
 
 if __name__ == "__main__":
     main()

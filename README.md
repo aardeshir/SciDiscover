@@ -38,8 +38,8 @@ SciDiscover is a cutting-edge platform for scientific discovery that leverages m
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/scidiscover.git
-cd scidiscover
+git clone https://github.com/aardeshir/SciDiscover.git
+cd SciDiscover
 
 # Create a virtual environment (recommended)
 python -m venv venv
