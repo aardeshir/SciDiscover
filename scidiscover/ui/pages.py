@@ -189,7 +189,7 @@ def main_page():
         current_stage = min(st.session_state.analysis_stage, len(stages) - 1)
         progress_percent = current_stage / (len(stages) - 1)
 
-        # Create a real-time timer that updates automatically
+        # Display progress and static timer
         with analysis_progress_container.container():
             st.subheader("🔄 Scientific Analysis in Progress")
 
@@ -198,45 +198,13 @@ def main_page():
 
             # Current stage description
             st.info(f"**Current Stage:** {stages[current_stage]}")
-
-            # Create a placeholder for the real-time timer
-            elapsed_time_placeholder = st.empty()
             
-            # Display initial elapsed time
+            # Display static elapsed time - will be updated on rerun
             current_elapsed = 0
             if st.session_state.analysis_start_time:
                 current_elapsed = int(time.time() - st.session_state.analysis_start_time)
                 
-            # Set up JavaScript to update the timer
-            elapsed_time_placeholder.caption(f"Time elapsed: {current_elapsed} seconds")
-            
-            # Add a JavaScript snippet to update the timer every second
-            st.markdown(
-                f"""
-                <script>
-                    // Function to update timer
-                    function updateTimer() {{
-                        const startTime = {int(st.session_state.analysis_start_time) if st.session_state.analysis_start_time else 'null'};
-                        if (startTime) {{
-                            const currentTime = Math.floor(Date.now() / 1000);
-                            const elapsedSeconds = currentTime - startTime;
-                            document.getElementById('timer-display').textContent = `Time elapsed: ${{elapsedSeconds}} seconds`;
-                        }}
-                    }}
-                    
-                    // Update timer every second
-                    const timerInterval = setInterval(updateTimer, 1000);
-                    
-                    // Clean up interval when page changes
-                    document.addEventListener('DOMContentLoaded', function() {{
-                        updateTimer();  // Initial update
-                    }});
-                </script>
-                
-                <div id="timer-display">Time elapsed: {current_elapsed} seconds</div>
-                """,
-                unsafe_allow_html=True
-            )
+            st.caption(f"Time elapsed: {current_elapsed} seconds")
 
             # Estimated time remaining based on thinking mode
             if st.session_state.use_debate:
@@ -300,38 +268,7 @@ def main_page():
                 st.subheader("🔄 Performing deep scientific analysis...")
             st.info("Initializing analysis, please wait...")
             st.progress(0)
-            
-            # Create a placeholder for the real-time timer
-            elapsed_time_placeholder = st.empty()
-            elapsed_time_placeholder.caption(f"Time elapsed: 0 seconds")
-            
-            # Add a JavaScript snippet to update the timer every second
-            st.markdown(
-                f"""
-                <script>
-                    // Function to update timer
-                    function updateTimer() {{
-                        const startTime = {int(st.session_state.analysis_start_time)};
-                        if (startTime) {{
-                            const currentTime = Math.floor(Date.now() / 1000);
-                            const elapsedSeconds = currentTime - startTime;
-                            document.getElementById('timer-display').textContent = `Time elapsed: ${{elapsedSeconds}} seconds`;
-                        }}
-                    }}
-                    
-                    // Update timer every second
-                    const timerInterval = setInterval(updateTimer, 1000);
-                    
-                    // Clean up interval when page changes
-                    document.addEventListener('DOMContentLoaded', function() {{
-                        updateTimer();  // Initial update
-                    }});
-                </script>
-                
-                <div id="timer-display">Time elapsed: 0 seconds</div>
-                """,
-                unsafe_allow_html=True
-            )
+            st.caption("Time elapsed: 0 seconds")
 
         try:
             # Register the callback to capture debate history but not for UI updates
