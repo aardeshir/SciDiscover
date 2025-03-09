@@ -476,5 +476,11 @@ def main_page():
         thinking_mode_text = "extended thinking" if st.session_state.thinking_mode != "none" else "standard processing"
         st.caption(f"Analysis powered by Claude 3.7 Sonnet's {thinking_mode_text} capabilities ({output_tokens} output tokens, {thinking_tokens} thinking tokens)")
 
-    # Add a separator at the bottom
+    # Add ArdeshirLab attribution (always visible at the bottom)
     st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: #666; padding: 10px; font-size: 0.8em;">
+    Developed by <b>ArdeshirLab</b> (<a href="https://ardeshirlab.org" target="_blank" style="color: #666; text-decoration: underline;">ardeshirlab.org</a>) | 
+    <a href="https://github.com/ardeshirlab/scidiscover/blob/main/DISCLAIMER.md" target="_blank" style="color: #666; text-decoration: underline;">Disclaimer</a>
+    </div>
+    """, unsafe_allow_html=True)

@@ -22,12 +22,7 @@ def load_env_from_file():
 
 def render_disclaimer():
     """Render a small disclaimer link in the footer"""
-    st.markdown("""
-    <div style='position: fixed; bottom: 10px; right: 10px; z-index: 1000; font-size: 0.8rem; opacity: 0.7;'>
-        Developed by <a href='https://ardeshirlab.org' target='_blank'>ArdeshirLab</a> | 
-        <a href='https://github.com/aardeshir/SciDiscover/blob/main/DISCLAIMER.md' target='_blank'>Disclaimer</a>
-    </div>
-    """, unsafe_allow_html=True)
+    # Removed fixed position footer to prevent duplication
 
 def main():
     # Load environment variables from .env file
