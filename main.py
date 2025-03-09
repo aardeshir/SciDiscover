@@ -21,27 +21,8 @@ def load_env_from_file():
                         os.environ[key.strip()] = value.strip()
 
 def render_disclaimer():
-    """Render a collapsible disclaimer in the footer"""
-    with st.expander("**DISCLAIMER & WARRANTY INFORMATION**"):
-        st.markdown("""
-        **DISCLAIMER OF WARRANTY AND LIMITATION OF LIABILITY**
-
-        This software is provided by ardeshirlab.org "AS IS" and any express or implied warranties, 
-        including, but not limited to, the implied warranties of merchantability and fitness for 
-        a particular purpose are disclaimed.
-
-        **SPECIFIC WARNINGS:**
-
-        1. This application utilizes Large Language Models (LLMs) and PubTator, which may generate 
-        content that is incorrect, incomplete, or misleading despite best efforts to ensure accuracy.
-
-        2. This software is intended to assist scientific research but should not be used as the 
-        sole basis for any scientific conclusions, medical decisions, or policy recommendations.
-
-        3. Users are solely responsible for verifying all information provided by this software.
-
-        See [DISCLAIMER.md](https://github.com/yourusername/scidiscover/blob/main/DISCLAIMER.md) for the complete disclaimer.
-        """)
+    """Render a small disclaimer link in the footer"""
+    st.markdown("<a href='https://github.com/ardeshirlab/scidiscover/blob/main/DISCLAIMER.md' target='_blank'>Disclaimer</a>", unsafe_allow_html=True)
 
 def main():
     # Load environment variables from .env file
@@ -91,9 +72,14 @@ def main():
     # Run the main application
     main_page()
     
-    # Add disclaimer to the bottom of the page
-    st.sidebar.markdown("---")
-    render_disclaimer()
+    # Add a small footer with the disclaimer link
+    footer_html = """
+    <div style="position: fixed; bottom: 10px; right: 10px; font-size: 0.8em; opacity: 0.7;">
+        Developed by <a href="https://ardeshirlab.org" target="_blank">ArdeshirLab</a> | 
+        <a href="https://github.com/ardeshirlab/scidiscover/blob/main/DISCLAIMER.md" target="_blank">Disclaimer</a>
+    </div>
+    """
+    st.markdown(footer_html, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
