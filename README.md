@@ -219,6 +219,14 @@ For advanced users, the following configuration options are available in `config
 
 This project is licensed under the Apache License 2.0. See the LICENSE file for details.
 
+## Disclaimer
+
+This software is provided "AS IS" without warranty of any kind. SciDiscover utilizes Large Language Models (LLMs) and PubTator, which may generate content that is incorrect, incomplete, or misleading despite best efforts to ensure accuracy.
+
+**Important**: This software is intended to assist scientific research but should not be used as the sole basis for any scientific conclusions, medical decisions, or policy recommendations.
+
+For the full disclaimer, please see the [DISCLAIMER.md](DISCLAIMER.md) file.
+
 ## Acknowledgments
 
 - This research utilizes the Anthropic Claude API
