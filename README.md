@@ -43,9 +43,27 @@ cd scidiscover
 pip install -r requirements.txt
 
 # Set up environment variables
+# Option 1: Using .env file (recommended)
+cp .env.example .env
+# Edit .env file with your API keys
+
+# Option 2: Setting environment variables directly
 export ANTHROPIC_API_KEY=your_anthropic_api_key
 export OPENAI_API_KEY=your_openai_api_key  # Optional
 ```
+
+#### API Keys
+
+SciDiscover requires an Anthropic API key to function properly. Follow these steps to set up your API keys:
+
+1. Create an account on [Anthropic's website](https://console.anthropic.com/)
+2. Generate an API key from the Anthropic console
+3. Copy the `.env.example` file to `.env` and add your key:
+   ```
+   ANTHROPIC_API_KEY=your_actual_key_here
+   ```
+
+Note: OpenAI API key is optional and only used as a fallback if specified.
 
 ### Running the Application
 

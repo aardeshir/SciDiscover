@@ -11,8 +11,19 @@ from scidiscover.config import (
 
 class LLMManager:
     def __init__(self, high_demand_mode=True):
-        self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        # Check for API keys and initialize clients
+        if not ANTHROPIC_API_KEY:
+            print("WARNING: ANTHROPIC_API_KEY is not set. Anthropic API functionality will be unavailable.")
+            self.anthropic_client = None
+        else:
+            self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+
+        if not OPENAI_API_KEY:
+            print("NOTE: OPENAI_API_KEY is not set. OpenAI API functionality will be unavailable.")
+            self.openai_client = None
+        else:
+            self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
+            
         # The newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 19, 2025
         # This model supports extended thinking capabilities
         self.anthropic_model = ANTHROPIC_MODEL
@@ -50,6 +61,15 @@ class LLMManager:
             print(f"\nGenerating response with {model_preference}...")
             print(f"Using model: {self.anthropic_model if model_preference == 'anthropic' else OPENAI_MODEL}")
             print(f"Prompt: {prompt[:500]}...")  # Print first 500 chars of prompt for debugging
+
+            # Check if the requested client is available
+            if model_preference == "anthropic" and self.anthropic_client is None:
+                print("ERROR: Anthropic API client is not available. ANTHROPIC_API_KEY is not set.")
+                return "ERROR: Anthropic API key is not configured. Please set ANTHROPIC_API_KEY in your environment variables." if response_format == "text" else {"error": "Anthropic API key is not configured"}
+                
+            if model_preference == "openai" and self.openai_client is None:
+                print("ERROR: OpenAI API client is not available. OPENAI_API_KEY is not set.")
+                return "ERROR: OpenAI API key is not configured. Please set OPENAI_API_KEY in your environment variables." if response_format == "text" else {"error": "OpenAI API key is not configured"}
 
             if model_preference == "anthropic":
                 # Format messages for Claude API
