@@ -1,5 +1,14 @@
 # Environment variables
 .env
+*.env
+.env.*
+!.env.example
+
+# API keys and secrets
+*_key.*
+*_keys.*
+*_secret.*
+*_secrets.*
 
 # Python
 __pycache__/
@@ -25,6 +34,10 @@ wheels/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# LLM Thinking logs
+claude_thinking_log.txt
+*_thinking_log.txt
 
 # Virtual Environment
 venv/
